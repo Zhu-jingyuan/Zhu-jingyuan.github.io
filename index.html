@@ -1,298 +1,171 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  
-  
-  <title>Hexo</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta property="og:type" content="website">
-<meta property="og:title" content="Hexo">
-<meta property="og:url" content="http://example.com/index.html">
-<meta property="og:site_name" content="Hexo">
-<meta property="og:locale" content="en_US">
-<meta property="article:author" content="John Doe">
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Zhu-jingyuan - 在这分享我的心情</title><meta name="author" content="朱景元"><meta name="copyright" content="朱景元"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta property="og:type" content="website">
+<meta property="og:title" content="Zhu-jingyuan">
+<meta property="og:url" content="https://zhu-jingyuan.github.io/index.html">
+<meta property="og:site_name" content="Zhu-jingyuan">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://i.loli.net/2021/02/24/5O1day2nriDzjSu.png">
+<meta property="article:author" content="朱景元">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://i.loli.net/2021/02/24/5O1day2nriDzjSu.png"><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="https://zhu-jingyuan.github.io/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" media="print" onload="this.media='all'"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlighjs","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  source: {
+    justifiedGallery: {
+      js: 'https://cdn.jsdelivr.net/npm/flickr-justified-gallery/dist/fjGallery.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/flickr-justified-gallery/dist/fjGallery.min.css'
+    }
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Zhu-jingyuan',
+  isPost: false,
+  isHome: true,
+  isHighlightShrink: false,
+  isToc: false,
+  postUpdate: '2023-09-11 22:58:02'
+}</script><noscript><style type="text/css">
+  #nav {
+    opacity: 1
+  }
+  .justified-gallery img {
+    opacity: 1
+  }
+
+  #recent-posts time,
+  #post-meta time {
+    display: inline !important
+  }
+</style></noscript><script>(win=>{
+    win.saveToLocal = {
+      set: function setWithExpiry(key, value, ttl) {
+        if (ttl === 0) return
+        const now = new Date()
+        const expiryDay = ttl * 86400000
+        const item = {
+          value: value,
+          expiry: now.getTime() + expiryDay,
+        }
+        localStorage.setItem(key, JSON.stringify(item))
+      },
+
+      get: function getWithExpiry(key) {
+        const itemStr = localStorage.getItem(key)
+
+        if (!itemStr) {
+          return undefined
+        }
+        const item = JSON.parse(itemStr)
+        const now = new Date()
+
+        if (now.getTime() > item.expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return item.value
+      }
+    }
   
-    <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
+    win.getScript = url => new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = url
+      script.async = true
+      script.onerror = reject
+      script.onload = script.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        script.onload = script.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(script)
+    })
   
+    win.getCSS = (url,id = false) => new Promise((resolve, reject) => {
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = url
+      if (id) link.id = id
+      link.onerror = reject
+      link.onload = link.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        link.onload = link.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(link)
+    })
   
-    <link rel="shortcut icon" href="/favicon.png">
-  
-  
+      win.activateDarkMode = function () {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      win.activateLightMode = function () {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+      const t = saveToLocal.get('theme')
     
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
-
-  
-  
-<link rel="stylesheet" href="/css/style.css">
-
-  
-    
-<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
-
-  
-  
-<meta name="generator" content="Hexo 6.3.0"></head>
-
-<body>
-  <div id="container">
-    <div id="wrap">
-      <header id="header">
-  <div id="banner"></div>
-  <div id="header-outer" class="outer">
-    <div id="header-title" class="inner">
-      <h1 id="logo-wrap">
-        <a href="/" id="logo">Hexo</a>
-      </h1>
-      
-    </div>
-    <div id="header-inner" class="inner">
-      <nav id="main-nav">
-        <a id="main-nav-toggle" class="nav-icon"><span class="fa fa-bars"></span></a>
+          if (t === 'dark') activateDarkMode()
+          else if (t === 'light') activateLightMode()
         
-          <a class="main-nav-link" href="/">Home</a>
-        
-          <a class="main-nav-link" href="/archives">Archives</a>
-        
-      </nav>
-      <nav id="sub-nav">
-        
-        
-          <a class="nav-icon" href="/atom.xml" title="RSS Feed"><span class="fa fa-rss"></span></a>
-        
-        <a class="nav-icon nav-search-btn" title="Search"><span class="fa fa-search"></span></a>
-      </nav>
-      <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://example.com"></form>
-      </div>
-    </div>
-  </div>
-</header>
-
-      <div class="outer">
-        <section id="main">
-  
-    <article id="post-2023-9-7-第三篇文章" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2023/09/08/2023-9-7-%E7%AC%AC%E4%B8%89%E7%AF%87%E6%96%87%E7%AB%A0/" class="article-date">
-  <time class="dt-published" datetime="2023-09-07T17:21:00.000Z" itemprop="datePublished">2023-09-08</time>
-</a>
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
     
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2023/09/08/2023-9-7-%E7%AC%AC%E4%B8%89%E7%AF%87%E6%96%87%E7%AB%A0/">近期小结</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>晚上情绪有点低落，没法唤起激情，不知道怎么了，这几天晚上都有这样的情况发生，就是什么都不想干，但上床睡觉有感觉太早，不想打游戏，不想学习，刷视频也觉得无聊和浪费时间。晚上和香香一起看了algs，一共是两轮一轮打完我去打了会LOL，越打越觉得厌恶，结束之后我索性把LOL删了。真的完全没有做任何事情都欲望，也不算很难过，仔细想想可能有点焦虑吧，毕竟时间浪费了。我感觉自己还是有点浮躁？像王国之泪这种游戏我觉得太耗时间不想开始，而英雄联盟也感觉没意思，学习这种死脑细胞的事情也不会考虑吧。</p>
-<p>下午去了篮球馆进行了志愿者培训，我其实当时心情应该还算不错的，不知道为什么一到晚上就有点低落。</p>
-<p>再观察一段时间吧，或许过几天健身房开了去运动一下会好一点。</p>
-<p>————————</p>
-<p>刚睡醒，感觉稍微好了一点，但总体情绪也没有啥太大波动。向周老师询问了一下，他说我是假期综合征。。。晚上去找他问下。</p>
-<p>话说这个学期上课要上到19周啊，太折磨了，不会放假要推迟吧，这也太难受了。</p>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://example.com/2023/09/08/2023-9-7-%E7%AC%AC%E4%B8%89%E7%AF%87%E6%96%87%E7%AB%A0/" data-id="clmbr7gs60002e4exhetyh77r" data-title="近期小结" class="article-share-link"><span class="fa fa-share">Share</span></a>
-      
-      
-      
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
-    <article id="post-2023-8-31-第二篇文章" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2023/08/31/2023-8-31-%E7%AC%AC%E4%BA%8C%E7%AF%87%E6%96%87%E7%AB%A0/" class="article-date">
-  <time class="dt-published" datetime="2023-08-30T16:04:00.000Z" itemprop="datePublished">2023-08-31</time>
-</a>
-    
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2023/08/31/2023-8-31-%E7%AC%AC%E4%BA%8C%E7%AF%87%E6%96%87%E7%AB%A0/">暑假小结</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>今天（准确的说是昨天），我开车回到了学校，这也意味着暑假结束了。</p>
-<p>回望这个暑假，我发现还算是完成了挺多有意义的事情。</p>
-<p>首先是我在6月23日去看了林志炫的苏州演唱会，现场确实很震撼，人很多，音响灯光都是我第一次见，但略微遗憾的是林志炫似乎状态不是很好，没有听到我预期的那种非常凝实的强混声，至少在我看来他这场演唱会的声音略微有点散，但总体完成度很高，我也是比较满意。</p>
-<p>从7月9号开始，我开始进行田径队内的集训，一直持续到8月8号，这期间最令我满意的是在某次训练后我找博宇帮我录了像，通过他的录像，我仔细分析了我原本的跑姿，改善了原本斜方肌紧绷造成的摆臂过大的问题。斜方肌放松以后，我的整个体态都有了明显的改善。步频有了明显的提升，得到了龙哥难得的夸奖，真的很不容易。还有一点令我惊喜的是我的体重竟然在这次训练期间有了往上增长的迹象，训练期间，我特地增加摄入，每当我面临吃或者不吃的时候，我都会选择毫不犹豫的开吃，并且我在有意选择相对高热量的饮食，我的体重竟然一度逼近65，之前一直在60左右。虽然之后放假回家作息不太规律会导致掉秤，但到本次回校以前，我的体重最终定格在了62.5，这倒是意外之喜。同时，通过这次训练，我发现我的身体状况有了明显的改善，我用奶茶来进行测试，发现过敏症状有明显的改善，这真的实属不易。在集训期间，每天和小丁除了训练就是放松吃东西或者打游戏，虽然身体有点累，但明显心情很不错，想的事情很少，感觉还是挺满意的。</p>
-<p>回到家以后，在和不同同学连续聚餐几天之后，我就基本投身于练车当中，经过几天训练，直接考出了驾照，也是比较幸运。</p>
-<p>考完驾照其实距离我回校就只剩一周左右了，我全成就了千恋万花，并成功成为一名柚子厨（ Ciallo～(∠・ω&lt; )⌒☆）。我发现这类gal比动漫更加具有沉浸感，虽然是静态画面，但却有着更大的想像空间，我会以一个游戏的心态去看待，而在潜意识里会认真看每一段文字，而相比于小说，又多了背景音乐，配音和画面。这个游戏的设定非常理想化，但是都玩游戏了，为什么还一定要把现实的种种因素考虑进来呢？就因为他理想化，所以才能带给我这种美好的体验，至少对我来说这个游戏是很成功的，反响非常大。</p>
-<p>而在这个暑假，我发现我对APEX已经没有那么热情了，在刚放暑假还在学校的那段时间，收益于排位机制的变化，我上了大师，但是我的热情却在一次次排位当中逐渐磨灭，我现在对这个游戏已经失去了原来的兴奋感。其实之前我有一阵时间发现自己有明显变强了，那段时间我对APEX还是抱有好感的，毕竟我收获了正反馈，我能明显发现我的定位和跟枪的进步，在排位赛中的表现也变得更加亮眼，但过了一段时间，可能我感受到了瓶颈，我感受到我至少目前来看变强无望，在提升自己的方面我又没法得到稳定的反馈，这或许也是我对这个游戏失去兴趣的原因之一。说到这，其实还有一个原因是新赛季的排位赛加分机制大打折扣，正反馈明显变弱，打了半天可能连一个小段位都没上，而开挂现象也十分严重，环境真是一言难尽，加之一起玩的朋友们时间也收缩了等等。诸多原因使得我目前对APEX逐渐无感。而英雄联盟也一样，这种快餐式的游戏往往在回望时会给我一种厌恶的感觉。在游戏中的快乐甚至不如我对时间流逝产生的厌恶感，这不禁令我反思，现在我决定以后减少这类游戏的游戏时长，逐渐将其作为社交类工具来看待。</p>
-<p>在最后这个星期里，我尝试去开发早就想练习的头声，经过一小段时间的体验，我或许是找到了头声的发声方法，头声在我目前看来就是更凝实的假声，共鸣点或许在上颌根部。学会头声之后，我发现自己能相对稳定很多地发出原本达不到的高音，而且音质也还可以接受，就是我有时闭合不是很完全，会漏气。还有个比较让我在意的是头声的音色和我的胸声有所不同，因此我在共鸣点转换的时候会有明显的断层感，会使得歌声非常不自然，但我又没法找到咽音的发声方式，因此我没法将胸声和头声连接形成混声。而且在较长时间练习头声之后，我发现声带还是会比较疲劳，虽然受损程度会比我原先挤卡硬顶要低很多，但还是会造成些许沙哑，今后要注意这个问题。不过在这么短时间内能找到头声已经让我相当惊喜了，至少我能唱很多不能唱的歌了，虽然音色不同，但至少能唱。这种方面也不是一时半会就能完全大成， 至少迈出了第一步。</p>
-<p>最后几天我也是稍微花了点时间搭建了这个博客，但也是简单的将框架搭建了一下，并且部署在了GitHub上面，我这个框架有大量可以优化的地方，以后有机会会慢慢搞，但是现在我只是用它最基础的记录功能。</p>
-<p>今天（其实是昨天）早上开了大概150公里的高速，非常紧张，开的比较臭，车技还得练，但能帮老爸分担一部分，我也还是挺开心。</p>
-<p>总体来看，这个暑假非常的充实，我对这个暑假自己的改变感到欣喜，回来之后首先就是要准备亚运会的赛会志愿活动，而下个暑假估计就是在紧张地准备考研了。</p>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://example.com/2023/08/31/2023-8-31-%E7%AC%AC%E4%BA%8C%E7%AF%87%E6%96%87%E7%AB%A0/" data-id="clmbr7gs80003e4ex58eocxgk" data-title="暑假小结" class="article-share-link"><span class="fa fa-share">Share</span></a>
-      
-      
-      
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
-    <article id="post-2023-8-26-第一篇文章" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2023/08/26/2023-8-26-%E7%AC%AC%E4%B8%80%E7%AF%87%E6%96%87%E7%AB%A0/" class="article-date">
-  <time class="dt-published" datetime="2023-08-26T06:00:00.000Z" itemprop="datePublished">2023-08-26</time>
-</a>
-    
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2023/08/26/2023-8-26-%E7%AC%AC%E4%B8%80%E7%AF%87%E6%96%87%E7%AB%A0/">博客创建</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>本博客创立于2023年8月26日，旨在记录我自己的日常生活中想记录下的事情，这是一个令人激动的开始。单单是这个博客的创建，我就从中学习了用git来进行版本控制，后续还会跟着教程，将其美化。期待后续的更新！！</p>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://example.com/2023/08/26/2023-8-26-%E7%AC%AC%E4%B8%80%E7%AF%87%E6%96%87%E7%AB%A0/" data-id="clmbr7gs40001e4exdg859be7" data-title="博客创建" class="article-share-link"><span class="fa fa-share">Share</span></a>
-      
-      
-      
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
-
-
-</section>
-        
-          <aside id="sidebar">
-  
-    
-
-  
-    
-
-  
-    
-  
-    
-  <div class="widget-wrap">
-    <h3 class="widget-title">Archives</h3>
-    <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/09/">September 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/08/">August 2023</a></li></ul>
-    </div>
-  </div>
-
-
-  
-    
-  <div class="widget-wrap">
-    <h3 class="widget-title">Recent Posts</h3>
-    <div class="widget">
-      <ul>
-        
-          <li>
-            <a href="/2023/09/08/2023-9-7-%E7%AC%AC%E4%B8%89%E7%AF%87%E6%96%87%E7%AB%A0/">近期小结</a>
-          </li>
-        
-          <li>
-            <a href="/2023/08/31/2023-8-31-%E7%AC%AC%E4%BA%8C%E7%AF%87%E6%96%87%E7%AB%A0/">暑假小结</a>
-          </li>
-        
-          <li>
-            <a href="/2023/08/26/2023-8-26-%E7%AC%AC%E4%B8%80%E7%AF%87%E6%96%87%E7%AB%A0/">博客创建</a>
-          </li>
-        
-      </ul>
-    </div>
-  </div>
-
-  
-</aside>
-        
-      </div>
-      <footer id="footer">
-  
-  <div class="outer">
-    <div id="footer-info" class="inner">
-      
-      &copy; 2023 John Doe<br>
-      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
-    </div>
-  </div>
-</footer>
-
-    </div>
-    <nav id="mobile-nav">
-  
-    <a href="/" class="mobile-nav-link">Home</a>
-  
-    <a href="/archives" class="mobile-nav-link">Archives</a>
-  
-</nav>
-    
-
-
-<script src="/js/jquery-3.6.4.min.js"></script>
-
-
-
-  
-<script src="/fancybox/jquery.fancybox.min.js"></script>
-
-
-
-
-<script src="/js/script.js"></script>
-
-
-
-
-
-  </div>
-</body>
-</html>
+    const detectApple = () => {
+      if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+    })(window)</script><meta name="generator" content="Hexo 6.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="https://i.loli.net/2021/02/24/5O1day2nriDzjSu.png" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="sidebar-site-data site-data is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">3</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">0</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">0</div></a></div><hr class="custom-hr"/></div></div><div class="page" id="body-wrap"><header class="full_page" id="page-header"><nav id="nav"><span id="blog-info"><a href="/" title="Zhu-jingyuan"><span class="site-name">Zhu-jingyuan</span></a></span><div id="menus"><div id="toggle-menu"><a class="site-page" href="javascript:void(0);"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="site-info"><h1 id="site-title">Zhu-jingyuan</h1></div><div id="scroll-down"><i class="fas fa-angle-down scroll-down-effects"></i></div></header><main class="layout" id="content-inner"><div class="recent-posts" id="recent-posts"><div class="recent-post-item"><div class="recent-post-info no-cover"><a class="article-title" href="/2023/09/08/2023-9-7-%E7%AC%AC%E4%B8%89%E7%AF%87%E6%96%87%E7%AB%A0/" title="近期小结">近期小结</a><div class="article-meta-wrap"><span class="post-meta-date"><i class="far fa-calendar-alt"></i><span class="article-meta-label">发表于</span><time datetime="2023-09-07T17:21:00.000Z" title="发表于 2023-09-08 01:21:00">2023-09-08</time></span></div><div class="content">晚上情绪有点低落，没法唤起激情，不知道怎么了，这几天晚上都有这样的情况发生，就是什么都不想干，但上床睡觉有感觉太早，不想打游戏，不想学习，刷视频也觉得无聊和浪费时间。晚上和香香一起看了algs，一共是两轮一轮打完我去打了会LOL，越打越觉得厌恶，结束之后我索性把LOL删了。真的完全没有做任何事情都欲望，也不算很难过，仔细想想可能有点焦虑吧，毕竟时间浪费了。我感觉自己还是有点浮躁？像王国之泪这种游戏我觉得太耗时间不想开始，而英雄联盟也感觉没意思，学习这种死脑细胞的事情也不会考虑吧。
+下午去了篮球馆进行了志愿者培训，我其实当时心情应该还算不错的，不知道为什么一到晚上就有点低落。
+再观察一段时间吧，或许过几天健身房开了去运动一下会好一点。
+————————
+刚睡醒，感觉稍微好了一点，但总体情绪也没有啥太大波动。向周老师询问了一下，他说我是假期综合征。。。晚上去找他问下。
+话说这个学期上课要上到19周啊，太折磨了，不会放假要推迟吧，这也太难受了。
+</div></div></div><div class="recent-post-item"><div class="recent-post-info no-cover"><a class="article-title" href="/2023/08/31/2023-8-31-%E7%AC%AC%E4%BA%8C%E7%AF%87%E6%96%87%E7%AB%A0/" title="暑假小结">暑假小结</a><div class="article-meta-wrap"><span class="post-meta-date"><i class="far fa-calendar-alt"></i><span class="article-meta-label">发表于</span><time datetime="2023-08-30T16:04:00.000Z" title="发表于 2023-08-31 00:04:00">2023-08-31</time></span></div><div class="content">今天（准确的说是昨天），我开车回到了学校，这也意味着暑假结束了。
+回望这个暑假，我发现还算是完成了挺多有意义的事情。
+首先是我在6月23日去看了林志炫的苏州演唱会，现场确实很震撼，人很多，音响灯光都是我第一次见，但略微遗憾的是林志炫似乎状态不是很好，没有听到我预期的那种非常凝实的强混声，至少在我看来他这场演唱会的声音略微有点散，但总体完成度很高，我也是比较满意。
+从7月9号开始，我开始进行田径队内的集训，一直持续到8月8号，这期间最令我满意的是在某次训练后我找博宇帮我录了像，通过他的录像，我仔细分析了我原本的跑姿，改善了原本斜方肌紧绷造成的摆臂过大的问题。斜方肌放松以后，我的整个体态都有了明显的改善。步频有了明显的提升，得到了龙哥难得的夸奖，真的很不容易。还有一点令我惊喜的是我的体重竟然在这次训练期间有了往上增长的迹象，训练期间，我特地增加摄入，每当我面临吃或者不吃的时候，我都会选择毫不犹豫的开吃，并且我在有意选择相对高热量的饮食，我的体重竟然一度逼近65，之前一直在60左右。虽然之后放假回家作息不太规律会导致掉秤，但到本次回校以前，我的体重最终定格在了62.5，这倒是意外之喜。同时， ...</div></div></div><div class="recent-post-item"><div class="recent-post-info no-cover"><a class="article-title" href="/2023/08/26/2023-8-26-%E7%AC%AC%E4%B8%80%E7%AF%87%E6%96%87%E7%AB%A0/" title="博客创建">博客创建</a><div class="article-meta-wrap"><span class="post-meta-date"><i class="far fa-calendar-alt"></i><span class="article-meta-label">发表于</span><time datetime="2023-08-26T06:00:00.000Z" title="发表于 2023-08-26 14:00:00">2023-08-26</time></span></div><div class="content">本博客创立于2023年8月26日，旨在记录我自己的日常生活中想记录下的事情，这是一个令人激动的开始。单单是这个博客的创建，我就从中学习了用git来进行版本控制，后续还会跟着教程，将其美化。期待后续的更新！
+在9月9日对博客进行了重建，原因是之前在创建的时候没有对源码进行版本控制，若不进行版本控制会造成无法多设备协同以及无法恢复等一系列问题，因此重新进行了搭建。
+</div></div></div><nav id="pagination"><div class="pagination"><span class="page-number current">1</span></div></nav></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="is-center"><div class="avatar-img"><img src="https://i.loli.net/2021/02/24/5O1day2nriDzjSu.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info__name">朱景元</div><div class="author-info__description"></div></div><div class="card-info-data site-data is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">3</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">0</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">0</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2023/09/08/2023-9-7-%E7%AC%AC%E4%B8%89%E7%AF%87%E6%96%87%E7%AB%A0/" title="近期小结">近期小结</a><time datetime="2023-09-07T17:21:00.000Z" title="发表于 2023-09-08 01:21:00">2023-09-08</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2023/08/31/2023-8-31-%E7%AC%AC%E4%BA%8C%E7%AF%87%E6%96%87%E7%AB%A0/" title="暑假小结">暑假小结</a><time datetime="2023-08-30T16:04:00.000Z" title="发表于 2023-08-31 00:04:00">2023-08-31</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2023/08/26/2023-8-26-%E7%AC%AC%E4%B8%80%E7%AF%87%E6%96%87%E7%AB%A0/" title="博客创建">博客创建</a><time datetime="2023-08-26T06:00:00.000Z" title="发表于 2023-08-26 14:00:00">2023-08-26</time></div></div></div></div><div class="card-widget card-archives"><div class="item-headline"><i class="fas fa-archive"></i><span>归档</span></div><ul class="card-archive-list"><li class="card-archive-list-item"><a class="card-archive-list-link" href="/archives/2023/09/"><span class="card-archive-list-date">九月 2023</span><span class="card-archive-list-count">1</span></a></li><li class="card-archive-list-item"><a class="card-archive-list-link" href="/archives/2023/08/"><span class="card-archive-list-date">八月 2023</span><span class="card-archive-list-count">2</span></a></li></ul></div><div class="card-widget card-webinfo"><div class="item-headline"><i class="fas fa-chart-line"></i><span>网站资讯</span></div><div class="webinfo"><div class="webinfo-item"><div class="item-name">文章数目 :</div><div class="item-count">3</div></div><div class="webinfo-item"><div class="item-name">本站访客数 :</div><div class="item-count" id="busuanzi_value_site_uv"><i class="fa-solid fa-spinner fa-spin"></i></div></div><div class="webinfo-item"><div class="item-name">本站总访问量 :</div><div class="item-count" id="busuanzi_value_site_pv"><i class="fa-solid fa-spinner fa-spin"></i></div></div><div class="webinfo-item"><div class="item-name">最后更新时间 :</div><div class="item-count" id="last-push-date" data-lastPushDate="2023-09-11T14:58:02.504Z"><i class="fa-solid fa-spinner fa-spin"></i></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2020 - 2023 By 朱景元</div><div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside_config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox/fancybox.umd.min.js"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
