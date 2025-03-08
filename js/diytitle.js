@@ -11,8 +11,8 @@ document.addEventListener('visibilitychange', function () {
         //返回当前页面时标签显示内容
         document.title = '(ˆ(oo)ˆ) 抓到你了！' + OriginTitile;
         //两秒后变回正常标题
-        titleTime = setTimeout(function () {
-            document.title = OriginTitile;
-        }, 2000);
+       // titleTime = setTimeout(function () {
+        //    document.title = OriginTitile;
+       // }, 2000);
     }
 });
