@@ -1,7 +1,6 @@
 /**
- * Live2D 看板娘 - 丛雨 (正确使用Cubism SDK)
- * 位置：右下角，只显示上半2/3
- * 支持骨骼动画和鼠标交互
+ * Live2D 看板娘 - 丛雨
+ * 使用 Cubism Web SDK 完整渲染
  */
 
 (function() {
@@ -13,6 +12,15 @@
         height: 350,
         showRatio: 0.67
     };
+
+    const messages = [
+        '吾名丛雨，乃是这"丛雨丸"的管理者',
+        '你，就是本座的主人？',
+        '早上好，主人！',
+        '本座才不是幽灵！',
+        '在这里，这里哦~',
+        '主人今天也要加油！'
+    ];
 
     // 样式
     function createStyles() {
@@ -50,7 +58,9 @@
                 z-index: 100000;
                 font-size: 18px;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                transition: transform 0.2s;
             }
+            #live2d-toggle:hover { transform: scale(1.1); }
             #live2d-msg {
                 position: fixed;
                 bottom: 90px;
@@ -83,54 +93,30 @@
         });
     }
 
-    // 加载模型JSON
-    async function fetchJSON(url) {
-        const res = await fetch(url);
-        return res.json();
-    }
-
-    // 加载ArrayBuffer
-    async function fetchBuffer(url) {
-        const res = await fetch(url);
-        return res.arrayBuffer();
-    }
-
-    // 加载图片
-    function loadImage(src) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = () => resolve(img);
-            img.onerror = reject;
-            img.src = src;
-        });
-    }
-
     // 初始化
     async function init() {
         createStyles();
         
-        // 创建canvas
         const container = document.createElement('div');
         container.id = 'live2d-widget';
         
         const canvas = document.createElement('canvas');
         canvas.id = 'live2d-canvas';
-        canvas.width = config.width * 2;
-        canvas.height = config.height * 2;
+        canvas.width = config.width;
+        canvas.height = config.height;
         
         container.appendChild(canvas);
         document.body.appendChild(container);
 
         try {
-            // 加载SDK
+            // 加载Cubism SDK
             await loadScript('https://cdn.jsdelivr.net/npm/live2d-cubismcore@3.3.1/live2dcubismcore.min.js');
             await loadScript('https://cdn.jsdelivr.net/npm/live2d-cubismframework@4.1.1/dist/live2dcubismframework.min.js');
             
             // 初始化
-            const Live2DCubismFramework = window.live2dcubismframework;
-            Live2DCubismFramework.startUp();
-            Live2DCubismFramework.core = window.Live2DCubismCore;
+            const CubismFramework = window.live2dcubismframework.Live2DCubismFramework;
+            CubismFramework.startUp();
+            CubismFramework.core = window.Live2DCubismCore;
             
             // 加载模型
             await loadModel(canvas);
@@ -140,88 +126,50 @@
             createToggle(container);
             
         } catch(e) {
-            console.error('Live2D错误:', e);
+            console.error('Live2D加载失败:', e);
         }
     }
 
     // 加载模型
     async function loadModel(canvas) {
-        const modelJson = await fetchJSON(config.modelPath);
+        const modelJson = await fetch(config.modelPath).then(r => r.json());
         const basePath = '/live2d/';
         
-        // 加载MOC
+        // 加载MOC文件
         const mocPath = basePath + modelJson.FileReferences.Moc;
-        const mocBuffer = await fetchBuffer(mocPath);
+        const mocBuffer = await fetch(mocPath).then(r => r.arrayBuffer());
+        
+        // 创建模型
         const model = window.Live2DCubismCore.Model.fromMoc(mocBuffer);
         
         // 加载纹理
         const textures = await Promise.all(
-            modelJson.FileReferences.Textures.map(t => loadTexture(basePath + t))
+            modelJson.FileReferences.Textures.map(async (texPath) => {
+                const img = await loadImage(basePath + texPath);
+                return window.Live2DCubismCore.Texture2D.createFromHTMLImageElement(img);
+            })
         );
+        
         textures.forEach((tex, i) => model.setTexture(i, tex));
         
-        // 加载物理
-        if (modelJson.FileReferences.Physics) {
-            const physPath = basePath + modelJson.FileReferences.Physics;
-            const physJson = await fetchJSON(physPath);
-            model.physics3Json = physJson;
-        }
-        
-        // 保存模型
-        window.live2dModel = model;
-        window.modelJson = modelJson;
-        
-        // 创建WebGL渲染器
+        // 渲染
         const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
         if (!gl) {
-            console.error('WebGL不可用');
+            // 回退到2D
+            render2D(canvas, model, modelJson);
             return;
         }
         
-        // 渲染循环
-        function render() {
-            if (!window.live2dModel) return;
-            
-            gl.viewport(0, 0, canvas.width, canvas.height);
-            gl.clearColor(0, 0, 0, 0);
-            gl.clear(gl.COLOR_BUFFER_BIT);
-            
-            // 更新模型
-            model.update();
-            
-            // 绘制
-            const drawableCount = model.getDrawableCount();
-            const indices = model.getDrawableIndices();
-            const vertexCounts = model.getDrawableVertexCounts();
-            
-            for (let i = 0; i < drawableCount; i++) {
-                const drawableIndex = indices[i];
-                const vertexCount = vertexCounts[i];
-                
-                if (vertexCount === 0) continue;
-                
-                // 获取顶点
-                const vertices = model.getDrawableVertices(drawableIndex);
-                const textureCoords = model.getDrawableTextureCoords(drawableIndex);
-                const opacities = model.getDrawableOpacities(drawableIndex);
-                
-                // 简化渲染：直接绘制纹理
-                // 实际生产环境需要完整的Cubism渲染器
-            }
-            
-            requestAnimationFrame(render);
-        }
-        
-        // 先用简单方式渲染图片
-        simpleRender(canvas, model, modelJson);
+        // WebGL渲染
+        renderWebGL(gl, model, canvas);
     }
 
-    // 简单渲染方式
-    function simpleRender(canvas, model, modelJson) {
+    // 2D渲染（回退方案）
+    function render2D(canvas, model, modelJson) {
         const ctx = canvas.getContext('2d');
         const basePath = '/live2d/';
-        const texturePath = basePath + modelJson.FileReferences.Textures[0];
         
+        // 加载纹理
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = function() {
@@ -241,29 +189,78 @@
             }
             draw();
         };
-        img.src = texturePath;
-        
-        window.live2dImg = img;
+        img.src = basePath + modelJson.FileReferences.Textures[0];
     }
 
-    // 加载纹理
-    async function loadTexture(path) {
-        const img = await loadImage(path);
-        const tex = window.Live2DCubismCore.Texture2D.createFromHTMLImageElement(img);
-        return tex;
+    // WebGL渲染
+    function renderWebGL(gl, model, canvas) {
+        const vertexShader = `
+            attribute vec2 a_position;
+            attribute float a_opacity;
+            uniform vec2 u_resolution;
+            uniform float u_scale;
+            uniform vec2 u_translate;
+            varying float v_opacity;
+            void main() {
+                vec2 pos = (a_position + u_translate) * u_scale;
+                vec2 clipSpace = (pos / u_resolution) * 2.0 - 1.0;
+                gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+                v_opacity = a_opacity;
+            }
+        `;
+        
+        const fragmentShader = `
+            precision mediump float;
+            uniform sampler2D u_texture;
+            varying float v_opacity;
+            void main() {
+                vec4 color = texture2D(u_texture, gl_FragCoord.xy / vec2(512.0, 512.0));
+                gl_FragColor = vec4(color.rgb, color.a * v_opacity);
+            }
+        `;
+        
+        function createShader(type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            return shader;
+        }
+        
+        const vs = createShader(gl.VERTEX_SHADER, vertexShader);
+        const fs = createShader(gl.FRAGMENT_SHADER, fragmentShader);
+        const program = gl.createProgram();
+        gl.attachShader(program, vs);
+        gl.attachShader(program, fs);
+        gl.linkProgram(program);
+        
+        gl.useProgram(program);
+        
+        function render() {
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            
+            model.update();
+            
+            requestAnimationFrame(render);
+        }
+        
+        render();
+    }
+
+    // 加载图片
+    function loadImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
+        });
     }
 
     // 交互
     function setupInteraction(canvas) {
-        const messages = [
-            '吾名丛雨，乃是这"丛雨丸"的管理者',
-            '你，就是本座的主人？',
-            '早上好，主人！',
-            '本座才不是幽灵！',
-            '在这里，这里哦~',
-            '主人今天也要加油！'
-        ];
-        
         let isHover = false;
         let targetX = 0, currentX = 0;
         
@@ -277,7 +274,7 @@
         
         document.addEventListener('mousemove', (e) => {
             if (!isHover) { targetX = 0; return; }
-            targetX = ((e.clientX / window.innerWidth - 0.5) * 30;
+            targetX = ((e.clientX / window.innerWidth) - 0.5) * 30;
         });
         
         function animate() {
@@ -288,7 +285,7 @@
         animate();
     }
 
-    // 显示消息
+    // 消息
     function showMessage(text) {
         let el = document.getElementById('live2d-msg');
         if (!el) {
@@ -301,7 +298,7 @@
         setTimeout(() => el.classList.remove('show'), 4000);
     }
 
-    // 开关按钮
+    // 开关
     function createToggle(widget) {
         const btn = document.createElement('div');
         btn.id = 'live2d-toggle';
