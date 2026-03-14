@@ -7,11 +7,11 @@
     'use strict';
 
     const config = {
-        // 使用模型的主纹理图片
         imagePath: '/live2d/Murasame.4096/texture_00.png',
         width: 280,
         height: 400,
-        showRatio: 0.67
+        showRatio: 0.67,
+        loadTimeout: 15000 // 15秒超时
     };
 
     const messages = [
@@ -47,18 +47,20 @@
                 max-width: 120%;
                 max-height: 120%;
                 object-fit: contain;
-                /* 只显示上半2/3 */
                 clip-path: polygon(0 0, 100% 0, 100% ${config.showRatio * 100}%, 0 ${config.showRatio * 100}%);
                 pointer-events: auto;
                 cursor: pointer;
                 transition: transform 0.15s ease-out;
                 user-select: none;
                 -webkit-user-drag: none;
+                opacity: 0;
+            }
+            #live2d-img.loaded {
+                opacity: 1;
             }
             #live2d-img:hover {
                 transform: translateX(-50%) scale(1.03);
             }
-            /* 呼吸动画 */
             @keyframes live2d-breathe {
                 0%, 100% { transform: translateX(-50%) scale(1); }
                 50% { transform: translateX(-50%) scale(1.02); }
@@ -66,7 +68,6 @@
             #live2d-img.breathing {
                 animation: live2d-breathe 3s ease-in-out infinite;
             }
-            /* 说话动画 */
             @keyframes live2d-talk {
                 0%, 100% { transform: translateX(-50%) scale(1); }
                 25% { transform: translateX(-50%) scale(1.04); }
@@ -93,9 +94,7 @@
                 transition: transform 0.2s;
                 user-select: none;
             }
-            #live2d-toggle:hover {
-                transform: scale(1.12);
-            }
+            #live2d-toggle:hover { transform: scale(1.12); }
             #live2d-msg {
                 position: fixed;
                 bottom: 90px;
@@ -114,20 +113,34 @@
                 z-index: 100001;
                 pointer-events: none;
             }
-            #live2d-msg.show {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            #live2d-msg.show { opacity: 1; transform: translateY(0); }
             #live2d-loading {
                 position: fixed;
-                bottom: 80px;
+                bottom: 20px;
                 right: 80px;
-                background: rgba(0,0,0,0.7);
+                background: rgba(0,0,0,0.8);
                 color: white;
-                padding: 8px 16px;
-                border-radius: 20px;
-                font-size: 12px;
+                padding: 10px 20px;
+                border-radius: 25px;
+                font-size: 13px;
                 z-index: 100000;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            #live2d-loading .spinner {
+                width: 16px;
+                height: 16px;
+                border: 2px solid rgba(255,255,255,0.3);
+                border-top-color: white;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+            #live2d-loading.error {
+                background: rgba(255,100,100,0.9);
             }
         `;
         document.head.appendChild(style);
@@ -140,68 +153,68 @@
         // 加载提示
         const loadingEl = document.createElement('div');
         loadingEl.id = 'live2d-loading';
-        loadingEl.textContent = 'Loading 丛雨...';
+        loadingEl.innerHTML = '<div class="spinner"></div><span>加载丛雨中...</span>';
         document.body.appendChild(loadingEl);
 
         // 创建容器
         const container = document.createElement('div');
         container.id = 'live2d-widget';
 
-        // 创建图片
         const img = document.createElement('img');
         img.id = 'live2d-img';
         img.src = config.imagePath;
         img.alt = 'Live2D 丛雨';
-        img.crossOrigin = 'anonymous';
         
-        // 加载完成
+        // 设置图片加载超时
+        let loaded = false;
+        let timeoutId = setTimeout(() => {
+            if (!loaded) {
+                loadingEl.classList.add('error');
+                loadingEl.innerHTML = '<span>图片太大，尝试重新加载...</span>';
+                // 尝试重新加载一次
+                img.src = '';
+                img.src = config.imagePath;
+                // 再等15秒
+                setTimeout(() => {
+                    if (!loaded) {
+                        loadingEl.innerHTML = '<span>加载超时，请刷新页面</span>';
+                    }
+                }, 15000);
+            }
+        }, config.loadTimeout);
+        
         img.onload = function() {
+            loaded = true;
+            clearTimeout(timeoutId);
             console.log('[Live2D] 图片加载成功');
+            img.classList.add('loaded', 'breathing');
             loadingEl.remove();
-            // 开始呼吸动画
-            img.classList.add('breathing');
+            
+            // 开场白
+            setTimeout(() => showMessage(messages[0]), 1000);
         };
         
         img.onerror = function() {
             console.error('[Live2D] 图片加载失败:', config.imagePath);
-            loadingEl.textContent = '加载失败';
-            setTimeout(() => loadingEl.remove(), 3000);
+            loadingEl.classList.add('error');
+            loadingEl.innerHTML = '<span>加载失败</span>';
         };
 
         container.appendChild(img);
         document.body.appendChild(container);
 
-        // 交互
         setupInteraction(img);
-
-        // 开关
         createToggle(container);
-
-        // 开场白
-        setTimeout(() => showMessage(messages[0]), 2000);
     }
 
-    // 交互
     function setupInteraction(img) {
         let isHover = false;
-        let targetX = 0;
-        let currentX = 0;
-        let isTalking = false;
+        let targetX = 0, currentX = 0, isTalking = false;
 
-        // 鼠标进入
-        img.addEventListener('mouseenter', () => {
-            isHover = true;
-        });
+        img.addEventListener('mouseenter', () => isHover = true);
+        img.addEventListener('mouseleave', () => { isHover = false; targetX = 0; });
 
-        // 鼠标离开
-        img.addEventListener('mouseleave', () => {
-            isHover = false;
-            targetX = 0;
-        });
-
-        // 点击说话
         img.addEventListener('click', () => {
-            // 说话动画
             if (!isTalking) {
                 isTalking = true;
                 img.classList.remove('breathing');
@@ -212,23 +225,16 @@
                     isTalking = false;
                 }, 500);
             }
-            
-            // 随机消息
             const msg = messages[Math.floor(Math.random() * messages.length)];
             showMessage(msg);
         });
 
-        // 鼠标移动 - 轻微跟随
         document.addEventListener('mousemove', (e) => {
-            if (!isHover) {
-                targetX = 0;
-                return;
-            }
+            if (!isHover) { targetX = 0; return; }
             const centerX = window.innerWidth / 2;
             targetX = ((e.clientX - centerX) / centerX) * 15;
         });
 
-        // 平滑动画
         function animate() {
             currentX += (targetX - currentX) * 0.1;
             const baseTransform = isHover ? 'translateX(calc(-50% + ' + currentX + 'px)) scale(1.03)' : 'translateX(-50%)';
@@ -240,7 +246,6 @@
         animate();
     }
 
-    // 消息
     function showMessage(text) {
         let el = document.getElementById('live2d-msg');
         if (!el) {
@@ -250,20 +255,15 @@
         }
         el.textContent = text;
         el.classList.add('show');
-        
         clearTimeout(el._timer);
-        el._timer = setTimeout(() => {
-            el.classList.remove('show');
-        }, 5000);
+        el._timer = setTimeout(() => el.classList.remove('show'), 5000);
     }
 
-    // 开关
     function createToggle(widget) {
         const btn = document.createElement('div');
         btn.id = 'live2d-toggle';
         btn.textContent = '🌸';
         btn.title = '显示/隐藏看板娘';
-
         let visible = true;
         btn.onclick = (e) => {
             e.stopPropagation();
@@ -271,11 +271,9 @@
             widget.style.display = visible ? 'block' : 'none';
             btn.textContent = visible ? '🌸' : '👋';
         };
-
         document.body.appendChild(btn);
     }
 
-    // 启动
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
