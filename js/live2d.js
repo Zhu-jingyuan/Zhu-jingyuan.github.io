@@ -1,17 +1,19 @@
 /**
  * Live2D 看板娘 - 丛雨
- * 简单稳定版：直接显示图片 + CSS动画
+ * 使用本地PixiJS + 在线Live2D渲染
  */
 
 (function () {
     'use strict';
 
     const config = {
-        imagePath: '/live2d/Murasame.4096/texture_00.png',
-        width: 280,
-        height: 400,
+        modelPath: '/live2d/Murasame.model3.json',
+        canvasWidth: 300,
+        canvasHeight: 450,
         showRatio: 0.67,
-        loadTimeout: 15000 // 15秒超时
+        scale: 0.25,
+        posX: 150,
+        posY: 50
     };
 
     const messages = [
@@ -33,48 +35,18 @@
                 position: fixed;
                 bottom: 0;
                 right: 20px;
-                width: ${config.width}px;
-                height: ${Math.floor(config.height * config.showRatio)}px;
+                width: ${config.canvasWidth}px;
+                height: ${Math.floor(config.canvasHeight * config.showRatio)}px;
                 overflow: hidden;
                 z-index: 99999;
                 pointer-events: none;
             }
-            #live2d-img {
+            #live2d-widget canvas {
                 position: absolute;
                 bottom: 0;
-                left: 50%;
-                transform: translateX(-50%);
-                max-width: 120%;
-                max-height: 120%;
-                object-fit: contain;
-                clip-path: polygon(0 0, 100% 0, 100% ${config.showRatio * 100}%, 0 ${config.showRatio * 100}%);
+                left: 0;
                 pointer-events: auto;
                 cursor: pointer;
-                transition: transform 0.15s ease-out;
-                user-select: none;
-                -webkit-user-drag: none;
-                opacity: 0;
-            }
-            #live2d-img.loaded {
-                opacity: 1;
-            }
-            #live2d-img:hover {
-                transform: translateX(-50%) scale(1.03);
-            }
-            @keyframes live2d-breathe {
-                0%, 100% { transform: translateX(-50%) scale(1); }
-                50% { transform: translateX(-50%) scale(1.02); }
-            }
-            #live2d-img.breathing {
-                animation: live2d-breathe 3s ease-in-out infinite;
-            }
-            @keyframes live2d-talk {
-                0%, 100% { transform: translateX(-50%) scale(1); }
-                25% { transform: translateX(-50%) scale(1.04); }
-                75% { transform: translateX(-50%) scale(1.02); }
-            }
-            #live2d-img.talking {
-                animation: live2d-talk 0.5s ease-in-out;
             }
             #live2d-toggle {
                 position: fixed;
@@ -136,114 +108,115 @@
                 border-radius: 50%;
                 animation: spin 1s linear infinite;
             }
-            @keyframes spin {
-                to { transform: rotate(360deg); }
-            }
-            #live2d-loading.error {
-                background: rgba(255,100,100,0.9);
-            }
+            @keyframes spin { to { transform: rotate(360deg); } }
         `;
         document.head.appendChild(style);
     }
 
-    // 初始化
-    function init() {
-        createStyles();
-
-        // 加载提示
-        const loadingEl = document.createElement('div');
-        loadingEl.id = 'live2d-loading';
-        loadingEl.innerHTML = '<div class="spinner"></div><span>加载丛雨中...</span>';
-        document.body.appendChild(loadingEl);
-
-        // 创建容器
-        const container = document.createElement('div');
-        container.id = 'live2d-widget';
-
-        const img = document.createElement('img');
-        img.id = 'live2d-img';
-        img.src = config.imagePath;
-        img.alt = 'Live2D 丛雨';
-        
-        // 设置图片加载超时
-        let loaded = false;
-        let timeoutId = setTimeout(() => {
-            if (!loaded) {
-                loadingEl.classList.add('error');
-                loadingEl.innerHTML = '<span>图片太大，尝试重新加载...</span>';
-                // 尝试重新加载一次
-                img.src = '';
-                img.src = config.imagePath;
-                // 再等15秒
-                setTimeout(() => {
-                    if (!loaded) {
-                        loadingEl.innerHTML = '<span>加载超时，请刷新页面</span>';
-                    }
-                }, 15000);
+    // 加载脚本
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            if (document.querySelector(`script[src="${src}"]`)) {
+                resolve();
+                return;
             }
-        }, config.loadTimeout);
-        
-        img.onload = function() {
-            loaded = true;
-            clearTimeout(timeoutId);
-            console.log('[Live2D] 图片加载成功');
-            img.classList.add('loaded', 'breathing');
-            loadingEl.remove();
-            
-            // 开场白
-            setTimeout(() => showMessage(messages[0]), 1000);
-        };
-        
-        img.onerror = function() {
-            console.error('[Live2D] 图片加载失败:', config.imagePath);
-            loadingEl.classList.add('error');
-            loadingEl.innerHTML = '<span>加载失败</span>';
-        };
-
-        container.appendChild(img);
-        document.body.appendChild(container);
-
-        setupInteraction(img);
-        createToggle(container);
+            const s = document.createElement('script');
+            s.src = src;
+            s.crossOrigin = 'anonymous';
+            s.onload = resolve;
+            s.onerror = () => reject(new Error(src));
+            document.head.appendChild(s);
+        });
     }
 
-    function setupInteraction(img) {
-        let isHover = false;
-        let targetX = 0, currentX = 0, isTalking = false;
+    // 初始化
+    async function init() {
+        createStyles();
 
-        img.addEventListener('mouseenter', () => isHover = true);
-        img.addEventListener('mouseleave', () => { isHover = false; targetX = 0; });
+        const loadingEl = document.createElement('div');
+        loadingEl.id = 'live2d-loading';
+        loadingEl.innerHTML = '<div class="spinner"></div><span>加载引擎...</span>';
+        document.body.appendChild(loadingEl);
 
-        img.addEventListener('click', () => {
-            if (!isTalking) {
-                isTalking = true;
-                img.classList.remove('breathing');
-                img.classList.add('talking');
-                setTimeout(() => {
-                    img.classList.remove('talking');
-                    img.classList.add('breathing');
-                    isTalking = false;
-                }, 500);
-            }
-            const msg = messages[Math.floor(Math.random() * messages.length)];
-            showMessage(msg);
-        });
+        const container = document.createElement('div');
+        container.id = 'live2d-widget';
+        document.body.appendChild(container);
 
-        document.addEventListener('mousemove', (e) => {
-            if (!isHover) { targetX = 0; return; }
-            const centerX = window.innerWidth / 2;
-            targetX = ((e.clientX - centerX) / centerX) * 15;
-        });
+        try {
+            // 1. 先加载本地PixiJS
+            await loadScript('/lib/pixi.min.js');
+            loadingEl.innerHTML = '<div class="spinner"></div><span>加载Live2D...</span>';
+            
+            // 2. 加载pixi-live2d-display (从jsDelivr)
+            await loadScript('https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/index.min.js');
+            
+            // 3. 加载Cubism Core (从jsDelivr)
+            await loadScript('https://cdn.jsdelivr.net/npm/live2d-cubismcore@3.3.1/live2dcubismcore.min.js');
 
-        function animate() {
-            currentX += (targetX - currentX) * 0.1;
-            const baseTransform = isHover ? 'translateX(calc(-50% + ' + currentX + 'px)) scale(1.03)' : 'translateX(-50%)';
-            if (!img.classList.contains('talking')) {
-                img.style.transform = baseTransform;
-            }
-            requestAnimationFrame(animate);
+            loadingEl.innerHTML = '<div class="spinner"></div><span>加载模型...</span>';
+
+            // 必须暴露全局
+            window.PIXI = window.PIXI || PIXI;
+
+            // 创建Pixi应用
+            const app = new PIXI.Application({
+                width: config.canvasWidth,
+                height: config.canvasHeight,
+                backgroundAlpha: 0,
+                antialias: true,
+                resolution: window.devicePixelRatio || 1,
+                autoDensity: true
+            });
+
+            container.appendChild(app.view);
+
+            // 加载Live2D模型
+            const model = await PIXI.live2d.Live2DModel.from(config.modelPath, {
+                autoInteract: false
+            });
+
+            app.stage.addChild(model);
+
+            // 设置位置和缩放
+            model.scale.set(config.scale);
+            model.x = config.posX;
+            model.y = config.posY;
+            model.anchor.set(0.5, 0);
+
+            window._live2dModel = model;
+            loadingEl.remove();
+
+            console.log('[Live2D] 模型加载成功!');
+
+            // 鼠标跟随
+            document.addEventListener('mousemove', (e) => {
+                if (model.focus) model.focus(e.clientX, e.clientY);
+            });
+
+            // 点击交互
+            app.view.addEventListener('click', () => {
+                // 尝试触发动作
+                try {
+                    const motions = Object.keys(model.internalModel?.settings?.motions || {});
+                    if (motions.length > 0) {
+                        const randomMotion = motions[Math.floor(Math.random() * motions.length)];
+                        if (model.motion) model.motion(randomMotion);
+                    }
+                } catch(e) {}
+                
+                const msg = messages[Math.floor(Math.random() * messages.length)];
+                showMessage(msg);
+            });
+
+            createToggle(container);
+
+            // 开场白
+            setTimeout(() => showMessage(messages[0]), 2000);
+
+        } catch (e) {
+            console.error('[Live2D] 加载失败:', e);
+            loadingEl.innerHTML = '<span>渲染引擎加载失败</span>';
         }
-        animate();
     }
 
     function showMessage(text) {
