@@ -149,13 +149,27 @@
             // 2. 加载本地Cubism Core
             await loadScript('/js/lib/live2dcubismcore.min.js');
             
-            // 3. 加载本地pixi-live2d-display
-            await loadScript('/js/lib/pixi-live2d.min.js');
+            // 3. 加载本地pixi-live2d-display (尝试不同的版本)
+            // 使用cubism4版本，它支持Cubism 3/4
+            const pluginSrc = '/js/lib/pixi-live2d.min.js';
+            await loadScript(pluginSrc);
+            
+            // 检查是否正确加载
+            if (!window.PIXI.live2d) {
+                // 尝试从全局变量查找
+                console.log('PIXI:', window.PIXI);
+                console.log('PIXI.live2d:', window.PIXI?.live2d);
+                
+                // 如果没有，尝试其他方式
+                throw new Error('PIXI.live2d 未定义，请尝试使用图片模式');
+            }
+            
+            // 注册插件
+            if (window.PIXI.live2d && window.PIXI.live2d.Live2DModel) {
+                // 插件已自动注册
+            }
 
             loadingEl.innerHTML = '<div class="spinner"></div><span>加载模型...</span>';
-
-            // 暴露全局
-            window.PIXI = window.PIXI || PIXI;
 
             // 创建Pixi应用
             const app = new PIXI.Application({
@@ -211,8 +225,66 @@
 
         } catch (e) {
             console.error('[Live2D] 加载失败:', e);
-            loadingEl.innerHTML = '<span>加载失败: ' + e.message + '</span>';
+            loadingEl.innerHTML = '<span>渲染引擎不支持，切换图片模式...</span>';
+            
+            // 回退到图片模式
+            setTimeout(() => {
+                loadingEl.remove();
+                initImageMode(container);
+            }, 1500);
         }
+    }
+
+    // 图片模式（回退方案）
+    function initImageMode(container) {
+        const img = document.createElement('img');
+        img.id = 'live2d-img';
+        img.src = '/live2d/Murasame.4096/texture_00.png';
+        img.crossOrigin = 'anonymous';
+        img.style.cssText = `
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            max-width: 120%;
+            max-height: 120%;
+            clip-path: polygon(0 0, 100% 0, 100% 67%, 0 67%);
+            pointer-events: auto;
+            cursor: pointer;
+            transition: transform 0.15s ease-out;
+            animation: breathe 3s ease-in-out infinite;
+        `;
+        
+        // 添加动画样式
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes breathe {
+                0%, 100% { transform: translateX(-50%) scale(1); }
+                50% { transform: translateX(-50%) scale(1.02); }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        container.appendChild(img);
+        
+        // 交互
+        let isHover = false;
+        img.addEventListener('mouseenter', () => isHover = true);
+        img.addEventListener('mouseleave', () => isHover = false);
+        img.addEventListener('click', () => {
+            const msg = messages[Math.floor(Math.random() * messages.length)];
+            showMessage(msg);
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isHover) return;
+            const centerX = window.innerWidth / 2;
+            const offset = ((e.clientX - centerX) / centerX) * 15;
+            img.style.transform = `translateX(calc(-50% + ${offset}px)) scale(1.03)`;
+        });
+        
+        createToggle(container);
+        setTimeout(() => showMessage(messages[0]), 2000);
     }
 
     function showMessage(text) {
