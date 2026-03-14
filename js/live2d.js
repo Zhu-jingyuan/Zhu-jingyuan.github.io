@@ -1,6 +1,6 @@
 /**
  * Live2D 看板娘 - 丛雨
- * 使用本地PixiJS + 在线Live2D渲染
+ * 完全本地加载，无CDN依赖
  */
 
 (function () {
@@ -122,7 +122,6 @@
             }
             const s = document.createElement('script');
             s.src = src;
-            s.crossOrigin = 'anonymous';
             s.onload = resolve;
             s.onerror = () => reject(new Error(src));
             document.head.appendChild(s);
@@ -135,7 +134,7 @@
 
         const loadingEl = document.createElement('div');
         loadingEl.id = 'live2d-loading';
-        loadingEl.innerHTML = '<div class="spinner"></div><span>加载引擎...</span>';
+        loadingEl.innerHTML = '<div class="spinner"></div><span>加载中...</span>';
         document.body.appendChild(loadingEl);
 
         const container = document.createElement('div');
@@ -143,19 +142,19 @@
         document.body.appendChild(container);
 
         try {
-            // 1. 先加载本地PixiJS
+            // 1. 加载本地PixiJS
             await loadScript('/lib/pixi.min.js');
-            loadingEl.innerHTML = '<div class="spinner"></div><span>加载Live2D...</span>';
+            loadingEl.innerHTML = '<div class="spinner"></div><span>加载引擎...</span>';
             
-            // 2. 加载pixi-live2d-display (从jsDelivr)
-            await loadScript('https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/index.min.js');
+            // 2. 加载本地Cubism Core
+            await loadScript('/lib/live2dcubismcore.min.js');
             
-            // 3. 加载Cubism Core (从jsDelivr)
-            await loadScript('https://cdn.jsdelivr.net/npm/live2d-cubismcore@3.3.1/live2dcubismcore.min.js');
+            // 3. 加载本地pixi-live2d-display
+            await loadScript('/lib/pixi-live2d.min.js');
 
             loadingEl.innerHTML = '<div class="spinner"></div><span>加载模型...</span>';
 
-            // 必须暴露全局
+            // 暴露全局
             window.PIXI = window.PIXI || PIXI;
 
             // 创建Pixi应用
@@ -171,9 +170,7 @@
             container.appendChild(app.view);
 
             // 加载Live2D模型
-            const model = await PIXI.live2d.Live2DModel.from(config.modelPath, {
-                autoInteract: false
-            });
+            const model = await PIXI.live2d.Live2DModel.from(config.modelPath);
 
             app.stage.addChild(model);
 
@@ -195,7 +192,6 @@
 
             // 点击交互
             app.view.addEventListener('click', () => {
-                // 尝试触发动作
                 try {
                     const motions = Object.keys(model.internalModel?.settings?.motions || {});
                     if (motions.length > 0) {
@@ -215,7 +211,7 @@
 
         } catch (e) {
             console.error('[Live2D] 加载失败:', e);
-            loadingEl.innerHTML = '<span>渲染引擎加载失败</span>';
+            loadingEl.innerHTML = '<span>加载失败: ' + e.message + '</span>';
         }
     }
 
