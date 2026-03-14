@@ -143,14 +143,14 @@
 
         try {
             // 1. 加载本地PixiJS
-            await loadScript('/lib/pixi.min.js');
+            await loadScript('/js/lib/pixi.min.js');
             loadingEl.innerHTML = '<div class="spinner"></div><span>加载引擎...</span>';
             
             // 2. 加载本地Cubism Core
-            await loadScript('/lib/live2dcubismcore.min.js');
+            await loadScript('/js/lib/live2dcubismcore.min.js');
             
             // 3. 加载本地pixi-live2d-display
-            await loadScript('/lib/pixi-live2d.min.js');
+            await loadScript('/js/lib/pixi-live2d.min.js');
 
             loadingEl.innerHTML = '<div class="spinner"></div><span>加载模型...</span>';
 
