@@ -164,6 +164,11 @@
     //
     // 解决：在步骤4写参数时，同时覆盖 _savedParameters，
     //        这样步骤6恢复的是鼠标值，下一帧动作叠加基准不会被 Idle 重置。
+    //
+    // 点击动作优先：isMotionPlaying = true 期间不覆盖参数，让动作自由播放；
+    //               平滑插值继续运行，动作结束后无缝衔接鼠标追踪。
+    let isMotionPlaying = false;
+
     function setupMouseTracking(model, canvas) {
         let targetX = 0, targetY = 0;
         let curX = 0, curY = 0;
@@ -195,8 +200,12 @@
         }
 
         model.internalModel.on('beforeModelUpdate', () => {
+            // 平滑插值始终运行（动作结束后可无缝衔接，不会突然跳位）
             curX += (targetX - curX) * smooth;
             curY += (targetY - curY) * smooth;
+
+            // 动作播放期间让位给动作，不强制覆盖参数
+            if (isMotionPlaying) return;
 
             try {
                 ensureIndices();
@@ -293,7 +302,8 @@
             setupMouseTracking(model, app.view);
 
             // 7. 点击交互（触发对应区域动作+音效+对话）
-            app.view.addEventListener('click', (e) => {
+            // 动作播放期间 isMotionPlaying=true，鼠标追踪让位；动作结束后自动恢复。
+            app.view.addEventListener('click', async (e) => {
                 const rect = app.view.getBoundingClientRect();
                 // 点击坐标转换为模型局部坐标
                 const localX = (e.clientX - rect.left) / (rect.width / CANVAS_W);
@@ -312,7 +322,7 @@
                 } catch (_) {}
 
                 // 找出对应动作（含音效和文本）
-                let soundSrc = null, text = null;
+                let soundSrc = null, text = null, motionGroupKey = null;
                 try {
                     const motions = model.internalModel?.settings?.motions || {};
                     const groupKey = hitMotionGroup
@@ -324,9 +334,7 @@
                     if (picked) {
                         if (picked.Sound) soundSrc = '/live2d/' + picked.Sound;
                         if (picked.Text) text = picked.Text;
-                        // 触发动作
-                        const gk = groupKey || Object.keys(motions).find(k => motions[k].includes(picked)) || Object.keys(motions)[0];
-                        if (gk) model.motion(gk);
+                        motionGroupKey = groupKey || Object.keys(motions).find(k => motions[k].includes(picked)) || Object.keys(motions)[0];
                     }
                 } catch (_) {}
 
@@ -335,6 +343,15 @@
 
                 playSound(soundSrc);
                 showMessage(text);
+
+                // 触发动作，期间暂停鼠标追踪覆盖
+                if (motionGroupKey) {
+                    try {
+                        isMotionPlaying = true;
+                        await model.motion(motionGroupKey);
+                    } catch (_) {}
+                    isMotionPlaying = false;
+                }
             });
 
             // 8. 语音/对话开关按钮
