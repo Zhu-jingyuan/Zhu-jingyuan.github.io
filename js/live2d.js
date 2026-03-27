@@ -10,9 +10,7 @@
     const MODEL_PATH = '/live2d/Murasame.model3.json';
     // canvas 宽高（实际渲染尺寸）
     const CANVAS_W = 300;
-    const CANVAS_H = 500;
-    // 只显示上半 2/3 高度
-    const SHOW_H = Math.floor(CANVAS_H * 0.67);
+    const CANVAS_H = 550;
 
     const MESSAGES = [
         '吾名丛雨，乃是这"丛雨丸"的管理者……',
@@ -51,8 +49,7 @@
                 bottom: 0;
                 right: 20px;
                 width: ${CANVAS_W}px;
-                height: ${SHOW_H}px;
-                overflow: hidden;
+                height: ${CANVAS_H}px;
                 z-index: 99999;
                 pointer-events: none;
             }
@@ -87,7 +84,7 @@
             }
             #live2d-msg {
                 position: fixed;
-                bottom: ${SHOW_H + 15}px;
+                bottom: ${CANVAS_H + 15}px;
                 right: 25px;
                 background: rgba(255,255,255,0.96);
                 padding: 10px 16px;
