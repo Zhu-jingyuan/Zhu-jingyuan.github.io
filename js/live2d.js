@@ -152,10 +152,17 @@
         currentAudio.play().catch(() => {});
     }
 
-    // 眼睛/头部追踪 —— 在 internalModel.update() 之后强制覆盖参数
-    // 原理：pixi-live2d-display 每帧先跑动作关键帧(update)，再渲染(draw)
-    // 我们 hook internalModel 的 update，在原始 update 完成后立刻覆盖参数
-    // 这样动作播放器对 Angle/EyeBall 的写入被我们的鼠标值覆盖，优先级最高
+    // 眼睛/头部追踪 —— 最终方案：直接写底层 _parameterValues 数组
+    //
+    // 问题根源：
+    //   1. pixi-live2d-display 自动循环播放 Idle（motion01），
+    //      motion01 包含 ParamAngleX/Y、ParamEyeBallX/Y、ParamEyeLOpen/ROpen 关键帧
+    //   2. setParameterValueById 是"叠加"写入（weight=1 加法），
+    //      动作值 + 我们的值 = 乱跳
+    //
+    // 正确方案：
+    //   在每帧 updateTransform（PIXI 渲染前最后一步）直接覆写底层参数数组 _parameterValues，
+    //   完全绕过动作系统，无论 Idle/动作关键帧写了什么，渲染时读到的就是我们的值。
     function setupMouseTracking(model, canvas) {
         let targetX = 0, targetY = 0;
         let curX = 0, curY = 0;
@@ -163,35 +170,78 @@
 
         document.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
-            targetX = Math.max(-1, Math.min(1, (e.clientX - (rect.left + rect.width / 2)) / (rect.width / 2)));
-            targetY = Math.max(-1, Math.min(1, (e.clientY - (rect.top + rect.height / 2)) / (rect.height / 2)));
+            targetX = Math.max(-1, Math.min(1,
+                (e.clientX - (rect.left + rect.width / 2)) / (rect.width / 2)));
+            targetY = Math.max(-1, Math.min(1,
+                (e.clientY - (rect.top + rect.height / 2)) / (rect.height / 2)));
         });
 
-        // Hook internalModel.update，在每帧动作数据写完之后强制覆盖追踪参数
-        const internalModel = model.internalModel;
-        const _originalUpdate = internalModel.update.bind(internalModel);
+        // 预先缓存参数 index，避免每帧查找
+        let idxAngleX = -1, idxAngleY = -1, idxAngleZ = -1;
+        let idxEyeX = -1, idxEyeY = -1;
+        let idxBodyX = -1, idxBodyY = -1;
 
-        internalModel.update = function (dt) {
-            // 先跑原始 update（含动作关键帧写参数）
-            _originalUpdate(dt);
+        function cacheParamIndices(core) {
+            const ids = core._parameterIds;   // Float32Array 对应的 id 列表
+            if (!ids) return false;
+            const find = (name) => {
+                for (let i = 0; i < ids.getSize(); i++) {
+                    if (ids.at(i) === name) return i;
+                }
+                return -1;
+            };
+            idxAngleX  = find('ParamAngleX');
+            idxAngleY  = find('ParamAngleY');
+            idxAngleZ  = find('ParamAngleZ');
+            idxEyeX    = find('ParamEyeBallX');
+            idxEyeY    = find('ParamEyeBallY');
+            idxBodyX   = find('ParamBodyAngleX');
+            idxBodyY   = find('ParamBodyAngleY');
+            return idxAngleX !== -1;
+        }
 
+        let indicesCached = false;
+
+        // Hook updateTransform —— PIXI 每帧渲染前调用，在动作系统写完参数之后、
+        // Cubism 实际渲染（update model）之前，直接覆写 _parameterValues
+        const _origUpdateTransform = model.updateTransform.bind(model);
+        model.updateTransform = function () {
             // 平滑插值
             curX += (targetX - curX) * smooth;
             curY += (targetY - curY) * smooth;
 
-            // 再强制覆盖追踪参数（优先级最高，覆盖动作关键帧）
             try {
-                const core = internalModel.coreModel;
+                const core = model.internalModel?.coreModel;
                 if (core) {
-                    core.setParameterValueById('ParamAngleX',    curX * 30);
-                    core.setParameterValueById('ParamAngleY',    -curY * 30);
-                    core.setParameterValueById('ParamAngleZ',    curX * -10);
-                    core.setParameterValueById('ParamEyeBallX',  curX);
-                    core.setParameterValueById('ParamEyeBallY',  -curY);
-                    core.setParameterValueById('ParamBodyAngleX', curX * 10);
-                    core.setParameterValueById('ParamBodyAngleY', -curY * 10);
+                    // 首次缓存参数 index
+                    if (!indicesCached) {
+                        indicesCached = cacheParamIndices(core);
+                    }
+
+                    if (indicesCached) {
+                        // 直接写底层 Float32Array，完全覆盖动作关键帧的结果
+                        const vals = core._parameterValues;
+                        if (idxAngleX  >= 0) vals.setValue(idxAngleX,   curX  *  30);
+                        if (idxAngleY  >= 0) vals.setValue(idxAngleY,  -curY  *  30);
+                        if (idxAngleZ  >= 0) vals.setValue(idxAngleZ,   curX  * -10);
+                        if (idxEyeX    >= 0) vals.setValue(idxEyeX,     curX);
+                        if (idxEyeY    >= 0) vals.setValue(idxEyeY,    -curY);
+                        if (idxBodyX   >= 0) vals.setValue(idxBodyX,    curX  *  10);
+                        if (idxBodyY   >= 0) vals.setValue(idxBodyY,   -curY  *  10);
+                    } else {
+                        // 降级：用 setParameterValueById 尽力覆盖
+                        core.setParameterValueById('ParamAngleX',    curX  *  30);
+                        core.setParameterValueById('ParamAngleY',   -curY  *  30);
+                        core.setParameterValueById('ParamAngleZ',    curX  * -10);
+                        core.setParameterValueById('ParamEyeBallX',  curX);
+                        core.setParameterValueById('ParamEyeBallY', -curY);
+                        core.setParameterValueById('ParamBodyAngleX', curX * 10);
+                        core.setParameterValueById('ParamBodyAngleY',-curY * 10);
+                    }
                 }
             } catch (_) {}
+
+            _origUpdateTransform();
         };
     }
 
@@ -239,6 +289,28 @@
             model.anchor.set(0.5, 0);
             model.x = CANVAS_W / 2;
             model.y = 0;
+
+            // 禁用内置 Idle 自动循环——它的关键帧会持续写 EyeBall/Angle 参数，干扰鼠标追踪
+            // 用空的 MotionManager 配置或直接清除 idleMotionGroup
+            try {
+                if (model.internalModel?.motionManager) {
+                    // 停止当前正在播放的所有动作
+                    model.internalModel.motionManager.stopAllMotions?.();
+                    // 清空 idle 优先级队列，阻止自动重新触发 Idle
+                    const mm = model.internalModel.motionManager;
+                    if (mm.idleTimeoutSeconds !== undefined) mm.idleTimeoutSeconds = Infinity;
+                    if (mm._idleManager) mm._idleManager = null;
+                    // 直接覆盖 startRandomMotion / updateMotion 内部 idle 逻辑
+                    if (mm.startRandomMotion) {
+                        const _origStart = mm.startRandomMotion.bind(mm);
+                        mm.startRandomMotion = function(group, priority) {
+                            // 只允许非 Idle 组的动作自动播放
+                            if (group && group.toLowerCase() === 'idle') return false;
+                            return _origStart(group, priority);
+                        };
+                    }
+                }
+            } catch (_) {}
 
             window._live2dModel = model;
             console.log('[Live2D] 丛雨加载成功！');
