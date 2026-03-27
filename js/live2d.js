@@ -152,18 +152,18 @@
         currentAudio.play().catch(() => {});
     }
 
-    // 眼睛/头部追踪 —— 终极方案
+    // 眼睛/头部追踪 —— 终极正确方案（基于源码分析）
     //
-    // pixi-live2d-display 每帧 update() 调用链：
-    //   motionManager.update()   → 动作关键帧写参数
-    //   saveParameters()         → 备份当前参数
-    //   expressionManager / eyeBlink / updateFocus / physics / pose ...
-    //   emit("beforeModelUpdate")  ← ★ 我们在这里写参数
-    //   model.update()           → Cubism Core 渲染（读此刻的 _parameterValues）
-    //   model.loadParameters()   → 把 savedParameters 写回（已经渲染完，不影响）
+    // pixi-live2d-display Cubism4InternalModel.update() 每帧调用链：
+    //   1. motionManager.update()      → 动作关键帧写入 _parameterValues
+    //   2. saveParameters()            → _savedParameters = _parameterValues（备份动作值）
+    //   3. expressionManager / eyeBlink / updateFocus / physics / pose
+    //   4. emit("beforeModelUpdate")   ← 我们在这里写
+    //   5. coreModel.update()          → Cubism Core 读 _parameterValues 渲染
+    //   6. loadParameters()            → _parameterValues = _savedParameters（恢复动作值）
     //
-    // 在 "beforeModelUpdate" 事件里直接调 setParameterValueById（weight=1 = 直接赋值），
-    // 此时动作已跑完、loadParameters 还没执行，值会被 model.update() 读到并渲染。
+    // 解决：在步骤4写参数时，同时覆盖 _savedParameters，
+    //        这样步骤6恢复的是鼠标值，下一帧动作叠加基准不会被 Idle 重置。
     function setupMouseTracking(model, canvas) {
         let targetX = 0, targetY = 0;
         let curX = 0, curY = 0;
@@ -179,18 +179,44 @@
 
         const core = model.internalModel.coreModel;
 
-        // 在 Cubism Core model.update() 前一刻写入参数
+        // 用官方 API 预缓存 index（只查一次）
+        let indices = null;
+        function ensureIndices() {
+            if (indices) return;
+            indices = {
+                angleX:  core.getParameterIndex('ParamAngleX'),
+                angleY:  core.getParameterIndex('ParamAngleY'),
+                angleZ:  core.getParameterIndex('ParamAngleZ'),
+                eyeX:    core.getParameterIndex('ParamEyeBallX'),
+                eyeY:    core.getParameterIndex('ParamEyeBallY'),
+                bodyX:   core.getParameterIndex('ParamBodyAngleX'),
+                bodyY:   core.getParameterIndex('ParamBodyAngleY'),
+            };
+        }
+
         model.internalModel.on('beforeModelUpdate', () => {
             curX += (targetX - curX) * smooth;
             curY += (targetY - curY) * smooth;
 
-            core.setParameterValueById('ParamAngleX',     curX  *  30);
-            core.setParameterValueById('ParamAngleY',    -curY  *  30);
-            core.setParameterValueById('ParamAngleZ',     curX  * -10);
-            core.setParameterValueById('ParamEyeBallX',   curX);
-            core.setParameterValueById('ParamEyeBallY',  -curY);
-            core.setParameterValueById('ParamBodyAngleX', curX  *  10);
-            core.setParameterValueById('ParamBodyAngleY',-curY  *  10);
+            try {
+                ensureIndices();
+                const writes = [
+                    [indices.angleX,  curX  *  30],
+                    [indices.angleY, -curY  *  30],
+                    [indices.angleZ,  curX  * -10],
+                    [indices.eyeX,    curX],
+                    [indices.eyeY,   -curY],
+                    [indices.bodyX,   curX  *  10],
+                    [indices.bodyY,  -curY  *  10],
+                ];
+                const pv = core._parameterValues;   // Float32Array（Cubism底层）
+                const sp = core._savedParameters;   // 普通JS数组（saveParameters备份）
+                for (const [idx, val] of writes) {
+                    if (idx < 0 || idx >= pv.length) continue;
+                    pv[idx] = val;                  // 当前帧供渲染
+                    if (sp && idx < sp.length) sp[idx] = val; // 下帧基准
+                }
+            } catch (_) {}
         });
     }
 
