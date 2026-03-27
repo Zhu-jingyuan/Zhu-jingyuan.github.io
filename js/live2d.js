@@ -319,6 +319,50 @@
             window._live2dModel = model;
             console.log('[Live2D] 丛雨加载成功！');
 
+            // ===== 调试：打印全部参数名和 index =====
+            try {
+                const core = model.internalModel.coreModel;
+                const count = core.getParameterCount ? core.getParameterCount() : core._parameterValues.length;
+                const names = [];
+                for (let i = 0; i < count; i++) {
+                    const id = core.getParameterId ? core.getParameterId(i) : ('param_' + i);
+                    names.push(i + ': ' + id);
+                }
+                console.log('[Live2D DEBUG] 全部参数:\n' + names.join('\n'));
+
+                // 监控 motionManager，每次有新 motion 开始时打印
+                const mm = model.internalModel.motionManager;
+                const _origStartMgr = mm.startMotion?.bind(mm);
+                if (_origStartMgr) {
+                    mm.startMotion = function(...args) {
+                        console.log('[Live2D DEBUG] startMotion called, group/no:', args[0], args[1], 'priority:', args[2]);
+                        console.trace();
+                        return _origStartMgr(...args);
+                    };
+                }
+                const _origRand = mm.startRandomMotion?.bind(mm);
+                if (_origRand) {
+                    mm.startRandomMotion = function(group, priority) {
+                        console.log('[Live2D DEBUG] startRandomMotion:', group, priority);
+                        console.trace();
+                        return _origRand(group, priority);
+                    };
+                }
+
+                // 每帧监控瞳孔参数变化
+                let lastPupilL = 0;
+                const pupilLIdx = core.getParameterIndex('ParamYanZhuSuoFangL');
+                console.log('[Live2D DEBUG] ParamYanZhuSuoFangL index:', pupilLIdx);
+                model.internalModel.on('beforeModelUpdate', () => {
+                    const v = core._parameterValues[pupilLIdx];
+                    if (Math.abs(v - lastPupilL) > 0.01) {
+                        console.log('[Live2D DEBUG] 瞳孔L变化:', lastPupilL.toFixed(3), '->', v.toFixed(3));
+                        lastPupilL = v;
+                    }
+                });
+            } catch(e) { console.warn('[Live2D DEBUG] 调试初始化失败', e); }
+            // ===== 调试结束 =====
+
             // 6. 眼睛/头部追踪（直接写参数，绕过 focus()）
             setupMouseTracking(model, app.view);
 
