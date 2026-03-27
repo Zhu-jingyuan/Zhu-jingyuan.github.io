@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Live2D 调试</title>
+<style>
+body { background: #1a1a2e; color: #eee; font-family: monospace; padding: 20px; }
+#log { background: #0d0d0d; padding: 15px; border-radius: 8px; white-space: pre-wrap; font-size: 13px; line-height: 1.6; max-height: 500px; overflow-y: auto; }
+.ok { color: #4caf50; }
+.warn { color: #ff9800; }
+.err { color: #f44336; }
+.info { color: #64b5f6; }
+h2 { color: #a18cd1; }
+</style>
+</head>
+<body>
+<h2>Live2D 调试工具</h2>
+<div id="log">加载中...</div>
+
+<!-- 加载 Live2D 依赖 -->
+<script src="/js/lib/live2dcubismcore.min.js"></script>
+<script src="/js/lib/live2d-bundle.js"></script>
+
+<script>
+const logEl = document.getElementById('log');
+const lines = [];
+function log(cls, ...args) {
+    const text = args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ');
+    lines.push('<span class="' + cls + '">' + text.replace(/</g,'&lt;') + '</span>');
+    logEl.innerHTML = lines.join('\n');
+    logEl.scrollTop = logEl.scrollHeight;
+}
+
+async function run() {
+    log('info', '=== 开始调试 ===');
+
+    if (!window.PIXI || !window.PIXI.live2d) {
+        log('err', '❌ PIXI.live2d 未定义，bundle 未加载');
+        return;
+    }
+    log('ok', '✅ PIXI.live2d 已加载');
+
+    log('info', '加载模型...');
+    let model;
+    try {
+        model = await PIXI.live2d.Live2DModel.from('/live2d/Murasame.model3.json', { autoInteract: false });
+        log('ok', '✅ 模型加载成功');
+    } catch(e) {
+        log('err', '❌ 模型加载失败: ' + e.message);
+        return;
+    }
+
+    const im = model.internalModel;
+    const core = im.coreModel;
+    const pv = core._parameterValues;
+
+    // 打印 eyeBlink 状态
+    log('info', 'eyeBlink 对象: ' + JSON.stringify(im.eyeBlink));
+    log('info', 'eyeBlink 类型: ' + typeof im.eyeBlink);
+
+    // 查所有参数
+    const paramCount = pv ? pv.length : -1;
+    log('info', '_parameterValues 长度: ' + paramCount);
+
+    const checkParams = [
+        'ParamEyeLOpen','ParamEyeROpen',
+        'ParamYanZhuSuoFangL','ParamYanZhuSuoFangR',
+        'ParamGaoGguangL','ParamGaoGuangR',
+        'ParamAngleX','ParamEyeBallX'
+    ];
+    checkParams.forEach(name => {
+        const idx = core.getParameterIndex(name);
+        const val = idx >= 0 ? pv[idx].toFixed(4) : 'NOT FOUND';
+        const cls = idx < 0 ? 'err' : 'ok';
+        log(cls, name + ' → idx=' + idx + ', val=' + val);
+    });
+
+    // 禁用 eyeBlink
+    log('info', '--- 禁用 eyeBlink ---');
+    if (im.eyeBlink) {
+        if (typeof im.eyeBlink.update === 'function') {
+            im.eyeBlink.update = function(){};
+        }
+        im.eyeBlink = null;
+        log('ok', '✅ eyeBlink 已置 null');
+    } else {
+        log('warn', '⚠️ eyeBlink 已经是 null/undefined');
+    }
+
+    // Hook loadParameters
+    const idxEyeLOpen = core.getParameterIndex('ParamEyeLOpen');
+    const idxEyeROpen = core.getParameterIndex('ParamEyeROpen');
+    const idxPupilL   = core.getParameterIndex('ParamYanZhuSuoFangL');
+    const idxPupilR   = core.getParameterIndex('ParamYanZhuSuoFangR');
+
+    const origLoad = core.loadParameters.bind(core);
+    let frameCount = 0;
+    core.loadParameters = function() {
+        origLoad();
+        frameCount++;
+        // 锁定瞳孔
+        if (idxPupilL >= 0) pv[idxPupilL] = 0;
+        if (idxPupilR >= 0) pv[idxPupilR] = 0;
+    };
+    log('ok', '✅ loadParameters hook 已安装');
+
+    // 把模型加到 PIXI App 才能让它运行
+    const app = new PIXI.Application({ width: 100, height: 100, backgroundAlpha: 0 });
+    document.body.appendChild(app.view);
+    app.stage.addChild(model);
+    log('info', '模型已加入渲染循环，开始采样...');
+
+    // 每500ms采样一次，共10次
+    let sampleCount = 0;
+    const timer = setInterval(() => {
+        sampleCount++;
+        const eyeL = idxEyeLOpen >= 0 ? pv[idxEyeLOpen].toFixed(3) : '?';
+        const eyeR = idxEyeROpen >= 0 ? pv[idxEyeROpen].toFixed(3) : '?';
+        const pupL = idxPupilL >= 0 ? pv[idxPupilL].toFixed(3) : '?';
+        const pupR = idxPupilR >= 0 ? pv[idxPupilR].toFixed(3) : '?';
+        const eyeClass = (parseFloat(eyeL) < 0.5 || parseFloat(eyeR) < 0.5) ? 'warn' : 'ok';
+        const pupClass = (parseFloat(pupL) !== 0 || parseFloat(pupR) !== 0) ? 'err' : 'ok';
+        log('info', '[' + sampleCount + '] frames=' + frameCount + '  EyeL=' + eyeL + ' EyeR=' + eyeR);
+        log(eyeClass, '     EyeLOpen/R → 期望=1.0');
+        log(pupClass,  '     PupilL=' + pupL + ' PupilR=' + pupR + ' → 期望=0.000');
+
+        if (sampleCount >= 10) {
+            clearInterval(timer);
+            log('info', '=== 采样完成 ===');
+            if (frameCount === 0) log('err', '❌ frameCount=0，渲染循环未运行！');
+            else log('ok', '✅ 共 ' + frameCount + ' 帧运行正常');
+        }
+    }, 500);
+}
+
+run().catch(e => log('err', '运行错误: ' + e.message));
+</script>
+</body>
+</html>
