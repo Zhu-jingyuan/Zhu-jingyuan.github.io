@@ -238,11 +238,16 @@
             applyParams();     // 然后立即把我们的值覆盖上去
         };
 
-        // beforeModelUpdate 里更新平滑插值（不再需要写参数，loadParameters hook 会处理）
+        // beforeModelUpdate：在 coreModel.update()（渲染）之前执行，这里是覆盖参数的正确时机
+        // 帧循环真实顺序：motionManager.update → saveParameters → [此事件] → coreModel.update(渲染) → loadParameters
+        // 必须在这里写 pv，才能让渲染看到我们的值。loadParameters hook 作为双重保险。
         model.internalModel.on('beforeModelUpdate', () => {
             curX += (targetX - curX) * smooth;
             curY += (targetY - curY) * smooth;
-            try { ensureIndices(); } catch(_) {}
+            try {
+                ensureIndices();
+                applyParams();  // 在渲染前强制覆写参数（覆盖 motion 关键帧写入的瞳孔值等）
+            } catch(_) {}
         });
     }
 
