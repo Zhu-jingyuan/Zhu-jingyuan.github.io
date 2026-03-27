@@ -8,11 +8,12 @@
     'use strict';
 
     const MODEL_PATH = '/live2d/Murasame.model3.json';
-    // canvas 宽高（完整模型渲染尺寸）
     const CANVAS_W = 300;
     const CANVAS_H = 550;
-    // 容器只显示上半 2/3，底部 1/3 被裁掉
-    const SHOW_H = Math.floor(CANVAS_H * 2 / 3);
+    const SHOW_H = Math.floor(CANVAS_H * 2 / 3);  // 只露上半 2/3
+
+    // 语音/对话开关状态（默认关闭），从 localStorage 读取
+    let voiceEnabled = localStorage.getItem('live2d_voice') === 'true';
 
     const MESSAGES = [
         '吾名丛雨，乃是这"丛雨丸"的管理者……',
@@ -63,6 +64,7 @@
                 pointer-events: auto;
                 cursor: pointer;
             }
+            /* 语音/对话开关按钮 */
             #live2d-toggle {
                 position: fixed;
                 bottom: 20px;
@@ -76,15 +78,21 @@
                 justify-content: center;
                 cursor: pointer;
                 z-index: 100000;
-                font-size: 22px;
+                font-size: 20px;
                 box-shadow: 0 4px 15px rgba(161,140,209,0.6);
-                transition: transform 0.2s, box-shadow 0.2s;
+                transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
                 user-select: none;
+                opacity: 0.5;
+            }
+            #live2d-toggle.active {
+                opacity: 1;
+                box-shadow: 0 4px 20px rgba(161,140,209,0.9);
             }
             #live2d-toggle:hover {
                 transform: scale(1.15);
                 box-shadow: 0 6px 20px rgba(161,140,209,0.8);
             }
+            /* 对话气泡 */
             #live2d-msg {
                 position: fixed;
                 bottom: ${SHOW_H + 15}px;
@@ -112,9 +120,13 @@
         document.head.appendChild(style);
     }
 
-    // 显示消息气泡
+    // 当前播放的音频
+    let currentAudio = null;
     let msgTimer = null;
+
+    // 显示对话气泡（受开关控制）
     function showMessage(text, duration) {
+        if (!voiceEnabled) return;
         duration = duration || 5000;
         let el = document.getElementById('live2d-msg');
         if (!el) {
@@ -128,6 +140,60 @@
         msgTimer = setTimeout(() => el.classList.remove('show'), duration);
     }
 
+    // 播放音频（受开关控制）
+    function playSound(src) {
+        if (!voiceEnabled) return;
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        }
+        currentAudio = new Audio(src);
+        currentAudio.volume = 0.8;
+        currentAudio.play().catch(() => {});
+    }
+
+    // 直接操控 Live2D 参数实现眼睛追踪
+    // pixi-live2d-display 的 focus() 内部实现不稳定，改用直接写参数
+    function setupMouseTracking(model, canvas) {
+        // 目标值（平滑用）
+        let targetX = 0, targetY = 0;
+        // 当前插值值
+        let curX = 0, curY = 0;
+
+        document.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            // 以 canvas 中心为原点，归一化到 [-1, 1]
+            targetX = Math.max(-1, Math.min(1, (e.clientX - (rect.left + rect.width / 2)) / (rect.width / 2)));
+            targetY = Math.max(-1, Math.min(1, (e.clientY - (rect.top + rect.height / 2)) / (rect.height / 2)));
+        });
+
+        // 每帧平滑插值并写入模型参数
+        const smooth = 0.1;
+        function tick() {
+            curX += (targetX - curX) * smooth;
+            curY += (targetY - curY) * smooth;
+
+            try {
+                const core = model.internalModel?.coreModel;
+                if (core) {
+                    // 头部旋转
+                    core.setParameterValueById('ParamAngleX', curX * 30);
+                    core.setParameterValueById('ParamAngleY', -curY * 30);
+                    core.setParameterValueById('ParamAngleZ', curX * -10);
+                    // 眼球
+                    core.setParameterValueById('ParamEyeBallX', curX);
+                    core.setParameterValueById('ParamEyeBallY', -curY);
+                    // 身体
+                    core.setParameterValueById('ParamBodyAngleX', curX * 10);
+                    core.setParameterValueById('ParamBodyAngleY', -curY * 10);
+                }
+            } catch (e) {}
+
+            requestAnimationFrame(tick);
+        }
+        tick();
+    }
+
     // 主初始化
     async function init() {
         createStyles();
@@ -137,17 +203,13 @@
         document.body.appendChild(container);
 
         try {
-            // 1. 加载 Cubism Core（必须在 bundle 之前）
+            // 1. 加载 Cubism Core
             await loadScript('/js/lib/live2dcubismcore.min.js');
-            console.log('[Live2D] Cubism Core loaded, Live2DCubismCore:', typeof window.Live2DCubismCore);
-
-            // 2. 加载打包好的 PIXI + pixi-live2d-display bundle
+            // 2. 加载 PIXI + pixi-live2d-display bundle
             await loadScript('/js/lib/live2d-bundle.js');
-            console.log('[Live2D] Bundle loaded, PIXI:', typeof window.PIXI, 'live2d:', typeof window.PIXI?.live2d);
 
-            // 确认加载成功
             if (!window.PIXI || !window.PIXI.live2d || !window.PIXI.live2d.Live2DModel) {
-                throw new Error('PIXI.live2d.Live2DModel 未定义，bundle加载失败');
+                throw new Error('PIXI.live2d.Live2DModel 未定义');
             }
 
             // 3. 创建 Pixi Application
@@ -158,25 +220,21 @@
                 transparent: true,
                 antialias: true,
                 resolution: Math.min(window.devicePixelRatio || 1, 2),
-                autoDensity: true
+                autoDensity: true,
             });
             container.appendChild(app.view);
 
-            // 4. 加载 Live2D 模型
-            console.log('[Live2D] Loading model from:', MODEL_PATH);
+            // 4. 加载模型
             const model = await PIXI.live2d.Live2DModel.from(MODEL_PATH, {
-                onError: (e) => console.error('[Live2D] Model error:', e)
+                onError: (e) => console.error('[Live2D] Model error:', e),
+                autoInteract: false,   // 关闭内置交互，避免和自定义冲突
             });
-            console.log('[Live2D] Model loaded:', model);
 
             app.stage.addChild(model);
 
-            // 5. 调整模型大小和位置（填满 canvas，完整显示全身）
-            const scaleX = CANVAS_W / model.width;
-            const scaleY = CANVAS_H / model.height;
-            const scale = Math.min(scaleX, scaleY);
+            // 5. 缩放与定位（顶部对齐，头部在上，底部被容器裁掉）
+            const scale = Math.min(CANVAS_W / model.width, CANVAS_H / model.height);
             model.scale.set(scale);
-            // 水平居中，垂直从顶部开始（完整全身）
             model.anchor.set(0.5, 0);
             model.x = CANVAS_W / 2;
             model.y = 0;
@@ -184,47 +242,73 @@
             window._live2dModel = model;
             console.log('[Live2D] 丛雨加载成功！');
 
-            // 6. 鼠标跟随（视线追踪）
-            // focus() 需要相对于 canvas 中心的归一化坐标 [-1, 1]
-            document.addEventListener('mousemove', (e) => {
-                if (!model.focus) return;
-                const rect = app.view.getBoundingClientRect();
-                const centerX = rect.left + rect.width / 2;
-                const centerY = rect.top + rect.height / 2;
-                const nx = (e.clientX - centerX) / (rect.width / 2);
-                const ny = (e.clientY - centerY) / (rect.height / 2);
-                model.focus(nx, ny);
-            });
+            // 6. 眼睛/头部追踪（直接写参数，绕过 focus()）
+            setupMouseTracking(model, app.view);
 
-            // 7. 点击交互
-            app.view.addEventListener('click', () => {
-                // 触发随机动作
+            // 7. 点击交互（触发对应区域动作+音效+对话）
+            app.view.addEventListener('click', (e) => {
+                const rect = app.view.getBoundingClientRect();
+                // 点击坐标转换为模型局部坐标
+                const localX = (e.clientX - rect.left) / (rect.width / CANVAS_W);
+                const localY = (e.clientY - rect.top) / (rect.height / CANVAS_H);
+
+                // 检测命中区域
+                let hitMotionGroup = null;
+                try {
+                    const hitAreas = model.internalModel?.settings?.hitAreas || [];
+                    for (const area of hitAreas) {
+                        if (model.hitTest(area.name, localX, localY)) {
+                            hitMotionGroup = area.motion || area.name;
+                            break;
+                        }
+                    }
+                } catch (_) {}
+
+                // 找出对应动作（含音效和文本）
+                let soundSrc = null, text = null;
                 try {
                     const motions = model.internalModel?.settings?.motions || {};
-                    const keys = Object.keys(motions);
-                    if (keys.length > 0) {
-                        const key = keys[Math.floor(Math.random() * keys.length)];
-                        model.motion(key);
+                    const groupKey = hitMotionGroup
+                        ? Object.keys(motions).find(k => k.toLowerCase() === ('tap' + hitMotionGroup).toLowerCase() || k.toLowerCase() === hitMotionGroup.toLowerCase())
+                        : null;
+                    const group = groupKey ? motions[groupKey] : null;
+                    const list = group && group.length ? group : Object.values(motions).flat();
+                    const picked = list[Math.floor(Math.random() * list.length)];
+                    if (picked) {
+                        if (picked.Sound) soundSrc = '/live2d/' + picked.Sound;
+                        if (picked.Text) text = picked.Text;
+                        // 触发动作
+                        const gk = groupKey || Object.keys(motions).find(k => motions[k].includes(picked)) || Object.keys(motions)[0];
+                        if (gk) model.motion(gk);
                     }
-                } catch (e) {}
-                // 显示随机对话
-                showMessage(MESSAGES[Math.floor(Math.random() * MESSAGES.length)]);
+                } catch (_) {}
+
+                // 随机消息兜底
+                if (!text) text = MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
+
+                playSound(soundSrc);
+                showMessage(text);
             });
 
-            // 8. 开场白
-            setTimeout(() => showMessage('欢迎来到主人的博客！本座在此等候~', 6000), 2000);
-
-            // 9. 开关按钮（在加载成功后才添加）
+            // 8. 语音/对话开关按钮
             const btn = document.createElement('div');
             btn.id = 'live2d-toggle';
-            btn.innerHTML = '🌸';
-            btn.title = '显示/隐藏看板娘';
-            let visible = true;
+            btn.title = voiceEnabled ? '关闭语音与对话' : '开启语音与对话';
+            btn.innerHTML = '🔊';
+            if (voiceEnabled) btn.classList.add('active');
+
             btn.onclick = (e) => {
                 e.stopPropagation();
-                visible = !visible;
-                container.style.display = visible ? 'block' : 'none';
-                btn.innerHTML = visible ? '🌸' : '👋';
+                voiceEnabled = !voiceEnabled;
+                localStorage.setItem('live2d_voice', voiceEnabled);
+                btn.classList.toggle('active', voiceEnabled);
+                btn.title = voiceEnabled ? '关闭语音与对话' : '开启语音与对话';
+                if (!voiceEnabled) {
+                    // 关闭时停止音频并隐藏气泡
+                    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+                    const msg = document.getElementById('live2d-msg');
+                    if (msg) msg.classList.remove('show');
+                }
             };
             document.body.appendChild(btn);
 
@@ -232,6 +316,16 @@
             console.error('[Live2D] 加载失败，已跳过看板娘:', e.message || e);
             container.remove();
         }
+    }
+
+    // 注册 Service Worker（缓存引擎和模型，二次加载无需重新下载）
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').then(
+                () => console.log('[Live2D] Service Worker 注册成功'),
+                (err) => console.warn('[Live2D] Service Worker 注册失败:', err)
+            );
+        });
     }
 
     if (document.readyState === 'loading') {
