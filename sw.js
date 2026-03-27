@@ -3,7 +3,7 @@
  * 缓存 Live2D 引擎文件和模型资源，实现一次加载后离线可用
  */
 
-const CACHE_NAME = 'live2d-cache-v1';
+const CACHE_NAME = 'live2d-cache-v3';
 
 // 需要缓存的资源列表
 const CACHE_URLS = [
@@ -84,17 +84,33 @@ self.addEventListener('fetch', (event) => {
                      url.pathname === '/js/live2d.js';
     if (!isLive2D) return;
 
-    event.respondWith(
-        caches.match(event.request).then((cached) => {
-            if (cached) return cached;
-            // 未缓存则从网络获取并存入缓存
-            return fetch(event.request).then((response) => {
+    // live2d.js 用网络优先（保证每次部署的新代码生效），其余资源用缓存优先（节省流量）
+    const isScript = url.pathname === '/js/live2d.js';
+
+    if (isScript) {
+        // 网络优先：先取网络，失败才用缓存
+        event.respondWith(
+            fetch(event.request).then((response) => {
                 if (response.ok) {
                     const clone = response.clone();
                     caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
                 }
                 return response;
-            });
-        })
-    );
+            }).catch(() => caches.match(event.request))
+        );
+    } else {
+        // 缓存优先：模型/引擎文件大且不变，缓存后直接用
+        event.respondWith(
+            caches.match(event.request).then((cached) => {
+                if (cached) return cached;
+                return fetch(event.request).then((response) => {
+                    if (response.ok) {
+                        const clone = response.clone();
+                        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+                    }
+                    return response;
+                });
+            })
+        );
+    }
 });
