@@ -189,13 +189,20 @@
         function ensureIndices() {
             if (indices) return;
             indices = {
-                angleX:  core.getParameterIndex('ParamAngleX'),
-                angleY:  core.getParameterIndex('ParamAngleY'),
-                angleZ:  core.getParameterIndex('ParamAngleZ'),
-                eyeX:    core.getParameterIndex('ParamEyeBallX'),
-                eyeY:    core.getParameterIndex('ParamEyeBallY'),
-                bodyX:   core.getParameterIndex('ParamBodyAngleX'),
-                bodyY:   core.getParameterIndex('ParamBodyAngleY'),
+                angleX:       core.getParameterIndex('ParamAngleX'),
+                angleY:       core.getParameterIndex('ParamAngleY'),
+                angleZ:       core.getParameterIndex('ParamAngleZ'),
+                eyeX:         core.getParameterIndex('ParamEyeBallX'),
+                eyeY:         core.getParameterIndex('ParamEyeBallY'),
+                bodyX:        core.getParameterIndex('ParamBodyAngleX'),
+                bodyY:        core.getParameterIndex('ParamBodyAngleY'),
+                // 瞳孔缩放参数——motion 关键帧会驱动这两个参数造成瞳孔不断收缩，
+                // 锁定为 0（静止默认值：不收缩也不扩张）
+                pupilL:       core.getParameterIndex('ParamYanZhuSuoFangL'),
+                pupilR:       core.getParameterIndex('ParamYanZhuSuoFangR'),
+                // 高光参数同理，锁定为 0
+                highlightL:   core.getParameterIndex('ParamGaoGguangL'),
+                highlightR:   core.getParameterIndex('ParamGaoGuangR'),
             };
         }
 
@@ -204,11 +211,27 @@
             curX += (targetX - curX) * smooth;
             curY += (targetY - curY) * smooth;
 
-            // 动作播放期间让位给动作，不强制覆盖参数
-            if (isMotionPlaying) return;
-
             try {
                 ensureIndices();
+                const pv = core._parameterValues;   // Float32Array（Cubism底层）
+                const sp = core._savedParameters;   // 普通JS数组（saveParameters备份）
+
+                // 瞳孔缩放和高光——无论动作是否在播放都要锁定，防止 motion 驱动瞳孔收缩
+                const alwaysWrites = [
+                    [indices.pupilL,     0],
+                    [indices.pupilR,     0],
+                    [indices.highlightL, 0],
+                    [indices.highlightR, 0],
+                ];
+                for (const [idx, val] of alwaysWrites) {
+                    if (idx < 0 || idx >= pv.length) continue;
+                    pv[idx] = val;
+                    if (sp && idx < sp.length) sp[idx] = val;
+                }
+
+                // 动作播放期间让位给动作，不强制覆盖头部/眼球方向参数
+                if (isMotionPlaying) return;
+
                 const writes = [
                     [indices.angleX,  curX  *  30],
                     [indices.angleY, -curY  *  30],
@@ -218,8 +241,6 @@
                     [indices.bodyX,   curX  *  10],
                     [indices.bodyY,  -curY  *  10],
                 ];
-                const pv = core._parameterValues;   // Float32Array（Cubism底层）
-                const sp = core._savedParameters;   // 普通JS数组（saveParameters备份）
                 for (const [idx, val] of writes) {
                     if (idx < 0 || idx >= pv.length) continue;
                     pv[idx] = val;                  // 当前帧供渲染
