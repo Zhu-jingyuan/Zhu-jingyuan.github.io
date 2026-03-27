@@ -182,8 +182,15 @@
             console.log('[Live2D] 丛雨加载成功！');
 
             // 6. 鼠标跟随（视线追踪）
+            // focus() 需要相对于 canvas 中心的归一化坐标 [-1, 1]
             document.addEventListener('mousemove', (e) => {
-                if (model.focus) model.focus(e.clientX, e.clientY);
+                if (!model.focus) return;
+                const rect = app.view.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const nx = (e.clientX - centerX) / (rect.width / 2);
+                const ny = (e.clientY - centerY) / (rect.height / 2);
+                model.focus(nx, ny);
             });
 
             // 7. 点击交互
