@@ -295,9 +295,21 @@
             // 会和我们的 beforeModelUpdate 事件里的写入产生顺序依赖，直接置空）
             // 禁用 Idle 自动循环（motion01 含 EyeBall/Angle 关键帧，会被 beforeModelUpdate 覆盖，
             // 但 loadParameters 之后 Idle 仍会反复触发，保险起见也禁用）
+            // 禁用 eyeBlink（眨眼写 ParamEyeLOpen，该参数通过 .moc3 内部参数绑定联动驱动瞳孔
+            // 缩放参数 ParamYanZhuSuoFang，导致每次眨眼时瞳孔收缩，无法从参数层面修复）
             try {
                 // 覆盖 updateFocus 为空函数
                 model.internalModel.updateFocus = function () {};
+                // 禁用 eyeBlink（彻底断开眨眼→瞳孔收缩的联动）
+                const eyeBlink = model.internalModel.eyeBlink;
+                if (eyeBlink) {
+                    // 方案1：直接置空 update 方法
+                    if (typeof eyeBlink.update === 'function') {
+                        eyeBlink.update = function () {};
+                    }
+                    // 方案2：将 eyeBlink 引用置 null（部分版本通过 eyeBlink?.update 调用）
+                    model.internalModel.eyeBlink = null;
+                }
                 // 禁用 Idle 重新触发
                 const mm = model.internalModel.motionManager;
                 if (mm) {
