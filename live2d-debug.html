@@ -2,32 +2,32 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Live2D 调试 v2</title>
+<title>Live2D 调试 v3</title>
 <style>
 body { background: #1a1a2e; color: #eee; font-family: monospace; padding: 20px; display: flex; gap: 20px; }
-#log { background: #0d0d0d; padding: 15px; border-radius: 8px; white-space: pre-wrap; font-size: 12px; line-height: 1.6; width: 480px; max-height: 600px; overflow-y: auto; }
-.ok { color: #4caf50; }
-.warn { color: #ff9800; }
-.err { color: #f44336; }
-.info { color: #64b5f6; }
+#log { background: #0d0d0d; padding: 15px; border-radius: 8px; white-space: pre-wrap; font-size: 12px; line-height: 1.6; width: 480px; max-height: 700px; overflow-y: auto; }
+.ok { color: #4caf50; } .warn { color: #ff9800; } .err { color: #f44336; } .info { color: #64b5f6; }
 h2 { color: #a18cd1; margin-top: 0; }
-#canvas-area { flex-shrink: 0; }
 button { margin: 4px 2px; padding: 6px 12px; background: #333; color: #eee; border: 1px solid #666; border-radius: 4px; cursor: pointer; }
 button:hover { background: #555; }
-#param-monitor { font-size: 11px; background: #0a0a1a; padding: 8px; border-radius: 4px; margin-top: 8px; white-space: pre; border: 1px solid #333; }
+#param-monitor { font-size: 12px; background: #0a0a1a; padding: 10px; border-radius: 4px; margin-top: 8px; white-space: pre; border: 1px solid #444; min-width: 300px; }
 </style>
 </head>
 <body>
-<div id="canvas-area">
-  <h2>Live2D 调试 v2</h2>
+<div>
+  <h2>Live2D 调试 v3</h2>
   <div id="param-monitor">等待模型加载...</div>
   <br>
-  <button onclick="playMotion(0)">播放 motion01 (Idle)</button>
-  <button onclick="playMotion(5)">播放 motion06</button>
-  <button onclick="playMotion(10)">播放 motion11</button>
-  <br>
-  <button onclick="toggleLock()">切换瞳孔锁定</button>
-  <button onclick="toggleEyeLock()">切换 EyeLOpen 锁定</button>
+  <b>方案测试：</b><br>
+  <button onclick="setMethod('none')">❌ 不拦截（基线）</button>
+  <button onclick="setMethod('ticker')">A: ticker强写</button>
+  <button onclick="setMethod('beforeUpdate')">B: beforeModelUpdate</button>
+  <button onclick="setMethod('loadHook')">C: loadParameters hook</button>
+  <button onclick="setMethod('both')">D: both(B+C)</button>
+  <br><br>
+  <b>Motion：</b><br>
+  <button onclick="playMotion(0)">Idle (motion01)</button>
+  <button onclick="stopMotion()">停止</button>
   <br>
   <div id="canvas-container"></div>
 </div>
@@ -45,23 +45,34 @@ const lines = [];
 function log(cls, ...args) {
     const text = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
     lines.push('<span class="' + cls + '">' + text.replace(/</g,'&lt;') + '</span>');
-    if (lines.length > 200) lines.shift();
+    if (lines.length > 300) lines.shift();
     logEl.innerHTML = lines.join('\n');
     logEl.scrollTop = logEl.scrollHeight;
 }
 
-let model = null, app = null, core = null, pv = null, indices = null;
-let pupilLocked = true;
-let eyeLocked = false;
+let model = null, app = null, core = null, pv = null, idx = {};
+let method = 'none';
 let frameCount = 0;
+let beforeUpdateFired = 0;
+let loadHookFired = 0;
+let tickerFired = 0;
+
+function setMethod(m) {
+    method = m;
+    log('warn', '>>> 切换方案: ' + m);
+}
+
+function lockPupil() {
+    if (!pv || !idx.pupilL) return;
+    if (idx.pupilL >= 0) pv[idx.pupilL] = 0;
+    if (idx.pupilR >= 0) pv[idx.pupilR] = 0;
+    if (idx.hlL >= 0) pv[idx.hlL] = 0;
+    if (idx.hlR >= 0) pv[idx.hlR] = 0;
+}
 
 async function run() {
-    log('info', '=== Live2D 调试 v2 ===');
-
-    if (!window.PIXI || !window.PIXI.live2d) {
-        log('err', '❌ PIXI.live2d 未定义'); return;
-    }
-    log('ok', '✅ PIXI 已加载');
+    log('info', '=== Live2D 调试 v3 ===');
+    if (!window.PIXI || !window.PIXI.live2d) { log('err', '❌ PIXI未定义'); return; }
 
     app = new PIXI.Application({ width: 300, height: 450, backgroundAlpha: 0, antialias: true });
     document.getElementById('canvas-container').appendChild(app.view);
@@ -69,124 +80,101 @@ async function run() {
     try {
         model = await PIXI.live2d.Live2DModel.from('/live2d/Murasame.model3.json', { autoInteract: false });
         log('ok', '✅ 模型加载成功');
-    } catch(e) {
-        log('err', '❌ 加载失败: ' + e.message); return;
-    }
+    } catch(e) { log('err', '❌ ' + e.message); return; }
 
     app.stage.addChild(model);
-    const sc = Math.min(300 / model.width, 450 / model.height);
+    const sc = Math.min(300/model.width, 450/model.height);
     model.scale.set(sc);
     model.anchor.set(0.5, 0);
     model.x = 150; model.y = 0;
 
     core = model.internalModel.coreModel;
     pv = core._parameterValues;
-
-    // 获取所有参数名
-    const allParams = [];
-    for (let i = 0; i < pv.length; i++) {
-        allParams.push(i);
-    }
+    log('info', 'pv 类型: ' + pv.constructor.name + ' 长度: ' + pv.length);
+    log('info', 'eyeBlink: ' + model.internalModel.eyeBlink);
 
     // 建立索引
-    const paramNames = [
-        'ParamAngleX','ParamAngleY','ParamAngleZ',
-        'ParamEyeLOpen','ParamEyeROpen',
-        'ParamEyeBallX','ParamEyeBallY',
-        'ParamYanZhuSuoFangL','ParamYanZhuSuoFangR',
-        'ParamGaoGguangL','ParamGaoGuangR',
-        'ParamBodyAngleX'
-    ];
-    indices = {};
-    paramNames.forEach(n => {
-        const idx = core.getParameterIndex(n);
-        indices[n] = idx;
-        log(idx >= 0 ? 'ok' : 'warn', n + ' → ' + idx);
+    const names = {
+        eyeL: 'ParamEyeLOpen', eyeR: 'ParamEyeROpen',
+        pupilL: 'ParamYanZhuSuoFangL', pupilR: 'ParamYanZhuSuoFangR',
+        hlL: 'ParamGaoGguangL', hlR: 'ParamGaoGuangR',
+        eyeX: 'ParamEyeBallX', angleX: 'ParamAngleX'
+    };
+    for (const [k, n] of Object.entries(names)) {
+        idx[k] = core.getParameterIndex(n);
+        log(idx[k] >= 0 ? 'ok' : 'err', n + ' → ' + idx[k]);
+    }
+
+    // === 方案B: beforeModelUpdate hook ===
+    model.internalModel.on('beforeModelUpdate', () => {
+        beforeUpdateFired++;
+        if (method === 'beforeUpdate' || method === 'both') {
+            lockPupil();
+        }
     });
 
-    log('info', 'eyeBlink: ' + typeof model.internalModel.eyeBlink);
-
-    // Hook loadParameters
+    // === 方案C: loadParameters hook ===
     const origLoad = core.loadParameters.bind(core);
     core.loadParameters = function() {
         origLoad();
-        frameCount++;
-        applyLocks();
+        loadHookFired++;
+        if (method === 'loadHook' || method === 'both') {
+            lockPupil();
+        }
     };
 
-    // Hook beforeModelUpdate
-    model.internalModel.on('beforeModelUpdate', () => {
-        applyLocks();
-    });
-
-    log('ok', '✅ hooks 已安装，开始监控...');
-
-    // 每帧更新监控面板
+    // === 方案A: ticker 强写（在 PIXI 渲染管线最后阶段） ===
+    // PIXI ticker 优先级：NORMAL=0, HIGH=25, INTERACTION=50
+    // 我们用最高优先级，在所有 PIXI 系统（包括 Live2D model update）之后执行
     app.ticker.add(() => {
-        if (!pv || !indices) return;
-        const I = indices;
-        const get = (name) => {
-            const idx = I[name];
-            return idx >= 0 ? pv[idx].toFixed(3) : '---';
-        };
+        tickerFired++;
+        if (method === 'ticker') {
+            lockPupil();
+        }
+    }, null, PIXI.UPDATE_PRIORITY.LOW); // LOW=-50，在 Live2D update 之后
+
+    // 监控面板
+    app.ticker.add(() => {
+        frameCount++;
+        if (!pv) return;
+        const g = (k) => idx[k] >= 0 ? pv[idx[k]].toFixed(3) : '---';
+        const eyeOk = parseFloat(g('eyeL')) > 0.9;
+        const pupOk = parseFloat(g('pupilL')) < 0.01;
         monEl.textContent = [
-            '--- 参数实时监控 ---',
-            '锁瞳孔: ' + (pupilLocked ? '✅开' : '❌关') + '   锁眼开: ' + (eyeLocked ? '✅开' : '❌关'),
-            '帧数: ' + frameCount,
+            '方案: ' + method + '   帧: ' + frameCount,
+            'beforeUpdate触发: ' + beforeUpdateFired + '  loadHook触发: ' + loadHookFired,
+            'ticker触发: ' + tickerFired,
             '',
-            'ParamEyeLOpen     = ' + get('ParamEyeLOpen'),
-            'ParamEyeROpen     = ' + get('ParamEyeROpen'),
-            'ParamYanZhuSuoFangL = ' + get('ParamYanZhuSuoFangL'),
-            'ParamYanZhuSuoFangR = ' + get('ParamYanZhuSuoFangR'),
-            'ParamGaoGguangL   = ' + get('ParamGaoGguangL'),
-            'ParamGaoGuangR    = ' + get('ParamGaoGuangR'),
-            'ParamEyeBallX     = ' + get('ParamEyeBallX'),
-            'ParamAngleX       = ' + get('ParamAngleX'),
+            'EyeLOpen  = ' + g('eyeL') + (eyeOk ? ' ✅' : ' ⚠️眨眼'),
+            'EyeROpen  = ' + g('eyeR'),
+            'PupilL    = ' + g('pupilL') + (pupOk ? ' ✅' : ' ❌收缩!!'),
+            'PupilR    = ' + g('pupilR'),
+            'HlL       = ' + g('hlL'),
+            'AngleX    = ' + g('angleX'),
         ].join('\n');
     });
+
+    log('ok', '✅ 全部 hook 安装完毕');
+    log('warn', '请点按钮选择方案，然后点 "Idle" 播放动画，观察 PupilL 是否锁定为 0.000');
 }
 
-function applyLocks() {
-    if (!pv || !indices) return;
-    const safe = (n, v) => {
-        const i = indices[n];
-        if (i >= 0 && i < pv.length) pv[i] = v;
-    };
-    if (pupilLocked) {
-        safe('ParamYanZhuSuoFangL', 0);
-        safe('ParamYanZhuSuoFangR', 0);
-        safe('ParamGaoGguangL', 0);
-        safe('ParamGaoGuangR', 0);
-    }
-    if (eyeLocked) {
-        safe('ParamEyeLOpen', 1);
-        safe('ParamEyeROpen', 1);
-    }
-}
-
-function playMotion(idx) {
+function playMotion(i) {
     if (!model) return;
     const im = model.internalModel;
-    const motions = im.settings?.motions;
-    if (!motions) { log('err', '无 motions'); return; }
+    const motions = im.settings && im.settings.motions;
+    if (!motions) { log('err', '无motions'); return; }
     const group = Object.keys(motions)[0];
-    const list = motions[group];
-    if (!list || idx >= list.length) { log('warn', '超出范围'); return; }
-    log('info', '播放: ' + group + '[' + idx + ']');
-    model.motion(group, idx);
+    log('info', '播放: ' + group + '[' + i + ']');
+    model.motion(group, i, 2); // priority=2 (NORMAL)
 }
 
-function toggleLock() {
-    pupilLocked = !pupilLocked;
-    log('info', '瞳孔锁定: ' + pupilLocked);
+function stopMotion() {
+    if (!model) return;
+    model.internalModel.motionManager.stopAllMotions && model.internalModel.motionManager.stopAllMotions();
+    log('info', '停止所有motion');
 }
 
-function toggleEyeLock() {
-    eyeLocked = !eyeLocked;
-    log('info', 'EyeLOpen 锁定: ' + eyeLocked);
-}
-
-run().catch(e => log('err', '错误: ' + e.message));
+run().catch(e => log('err', e.message));
 </script>
 </body>
 </html>
