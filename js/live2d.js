@@ -327,15 +327,29 @@
             window._live2dModel = model;
             console.log('[Live2D] 丛雨加载成功！');
 
-            // ===== 调试：打印全部参数名和 index =====
+            // ===== 调试：打印关键状态 =====
             try {
                 const dbgCore = model.internalModel.coreModel;
-                const count = dbgCore._parameterValues ? dbgCore._parameterValues.length : 0;
-                console.log('[Live2D DEBUG] _parameterValues length:', count);
-                // 用 getParameterIndex 验证关键参数
-                const keys = ['ParamYanZhuSuoFangL','ParamYanZhuSuoFangR','ParamGaoGguangL','ParamGaoGuangR','ParamAngleX','ParamEyeBallX'];
-                keys.forEach(k => console.log('[Live2D DEBUG]', k, '→ index', dbgCore.getParameterIndex(k)));
-            } catch(e) { console.warn('[Live2D DEBUG] 失败', e); }
+                const pv = dbgCore._parameterValues;
+                const idxEyeLOpen  = dbgCore.getParameterIndex('ParamEyeLOpen');
+                const idxEyeROpen  = dbgCore.getParameterIndex('ParamEyeROpen');
+                const idxPupilL    = dbgCore.getParameterIndex('ParamYanZhuSuoFangL');
+                const idxPupilR    = dbgCore.getParameterIndex('ParamYanZhuSuoFangR');
+                console.log('[DBG] eyeBlink after disable:', model.internalModel.eyeBlink);
+                console.log('[DBG] ParamEyeLOpen idx:', idxEyeLOpen, ' ParamEyeROpen idx:', idxEyeROpen);
+                console.log('[DBG] PupilL idx:', idxPupilL, ' PupilR idx:', idxPupilR);
+                // 每隔200ms打印一次眼睛参数，持续4秒，观察是否有变化
+                let dbgCount = 0;
+                const dbgTimer = setInterval(() => {
+                    if (++dbgCount > 20) { clearInterval(dbgTimer); return; }
+                    console.log('[DBG frame]',
+                        'EyeLOpen=', pv[idxEyeLOpen]?.toFixed(3),
+                        'EyeROpen=', pv[idxEyeROpen]?.toFixed(3),
+                        'PupilL=',   pv[idxPupilL]?.toFixed(3),
+                        'PupilR=',   pv[idxPupilR]?.toFixed(3)
+                    );
+                }, 200);
+            } catch(e) { console.warn('[DBG] 失败', e); }
             // ===== 调试结束 =====
 
             // 6. 眼睛/头部追踪（直接写参数，绕过 focus()）
