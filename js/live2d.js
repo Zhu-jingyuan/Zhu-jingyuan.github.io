@@ -10,7 +10,7 @@
     const MODEL_PATH = '/live2d/Murasame.model3.json';
     const CANVAS_W = 300;
     const CANVAS_H = 550;
-    const SHOW_H = Math.floor(CANVAS_H * 2 / 3);  // 只露上半 2/3
+    const SHOW_H = Math.floor(CANVAS_H * 3 / 5);  // 只露上半 3/5
 
     // 语音/对话开关状态（默认关闭），从 localStorage 读取
     let voiceEnabled = localStorage.getItem('live2d_voice') === 'true';
