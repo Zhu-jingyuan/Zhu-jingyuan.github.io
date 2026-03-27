@@ -28,6 +28,13 @@
         '点击本座试试？'
     ];
 
+    // 小屏幕检测（手机/窄屏不加载看板娘，省流量省性能）
+    const MOBILE_BREAKPOINT = 768;  // px，低于此宽度视为移动端
+
+    function isMobile() {
+        return window.innerWidth < MOBILE_BREAKPOINT;
+    }
+
     // 加载脚本（Promise封装）
     function loadScript(src) {
         return new Promise((resolve, reject) => {
@@ -115,6 +122,14 @@
             #live2d-msg.show {
                 opacity: 1;
                 transform: translateY(0);
+            }
+            /* 小屏幕（手机/平板竖屏）自动隐藏看板娘 */
+            @media (max-width: 768px) {
+                #live2d-widget,
+                #live2d-toggle,
+                #live2d-msg {
+                    display: none !important;
+                }
             }
         `;
         document.head.appendChild(style);
@@ -253,6 +268,12 @@
 
     // 主初始化
     async function init() {
+        // 移动端/小屏幕不加载看板娘（节省流量和性能）
+        if (isMobile()) {
+            console.log('[Live2D] 检测到小屏幕（宽度 < ' + MOBILE_BREAKPOINT + 'px），跳过看板娘加载');
+            return;
+        }
+
         createStyles();
 
         const container = document.createElement('div');
