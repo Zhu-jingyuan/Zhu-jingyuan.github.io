@@ -152,46 +152,47 @@
         currentAudio.play().catch(() => {});
     }
 
-    // 直接操控 Live2D 参数实现眼睛追踪
-    // pixi-live2d-display 的 focus() 内部实现不稳定，改用直接写参数
+    // 眼睛/头部追踪 —— 在 internalModel.update() 之后强制覆盖参数
+    // 原理：pixi-live2d-display 每帧先跑动作关键帧(update)，再渲染(draw)
+    // 我们 hook internalModel 的 update，在原始 update 完成后立刻覆盖参数
+    // 这样动作播放器对 Angle/EyeBall 的写入被我们的鼠标值覆盖，优先级最高
     function setupMouseTracking(model, canvas) {
-        // 目标值（平滑用）
         let targetX = 0, targetY = 0;
-        // 当前插值值
         let curX = 0, curY = 0;
+        const smooth = 0.08;
 
         document.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
-            // 以 canvas 中心为原点，归一化到 [-1, 1]
             targetX = Math.max(-1, Math.min(1, (e.clientX - (rect.left + rect.width / 2)) / (rect.width / 2)));
             targetY = Math.max(-1, Math.min(1, (e.clientY - (rect.top + rect.height / 2)) / (rect.height / 2)));
         });
 
-        // 每帧平滑插值并写入模型参数
-        const smooth = 0.1;
-        function tick() {
+        // Hook internalModel.update，在每帧动作数据写完之后强制覆盖追踪参数
+        const internalModel = model.internalModel;
+        const _originalUpdate = internalModel.update.bind(internalModel);
+
+        internalModel.update = function (dt) {
+            // 先跑原始 update（含动作关键帧写参数）
+            _originalUpdate(dt);
+
+            // 平滑插值
             curX += (targetX - curX) * smooth;
             curY += (targetY - curY) * smooth;
 
+            // 再强制覆盖追踪参数（优先级最高，覆盖动作关键帧）
             try {
-                const core = model.internalModel?.coreModel;
+                const core = internalModel.coreModel;
                 if (core) {
-                    // 头部旋转
-                    core.setParameterValueById('ParamAngleX', curX * 30);
-                    core.setParameterValueById('ParamAngleY', -curY * 30);
-                    core.setParameterValueById('ParamAngleZ', curX * -10);
-                    // 眼球
-                    core.setParameterValueById('ParamEyeBallX', curX);
-                    core.setParameterValueById('ParamEyeBallY', -curY);
-                    // 身体
+                    core.setParameterValueById('ParamAngleX',    curX * 30);
+                    core.setParameterValueById('ParamAngleY',    -curY * 30);
+                    core.setParameterValueById('ParamAngleZ',    curX * -10);
+                    core.setParameterValueById('ParamEyeBallX',  curX);
+                    core.setParameterValueById('ParamEyeBallY',  -curY);
                     core.setParameterValueById('ParamBodyAngleX', curX * 10);
                     core.setParameterValueById('ParamBodyAngleY', -curY * 10);
                 }
-            } catch (e) {}
-
-            requestAnimationFrame(tick);
-        }
-        tick();
+            } catch (_) {}
+        };
     }
 
     // 主初始化
