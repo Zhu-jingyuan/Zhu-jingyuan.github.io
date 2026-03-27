@@ -152,21 +152,21 @@
         currentAudio.play().catch(() => {});
     }
 
-    // 眼睛/头部追踪 —— 终极正确方案（基于源码分析）
+    // 眼睛/头部追踪 —— 终极方案 v3
     //
-    // pixi-live2d-display Cubism4InternalModel.update() 每帧调用链：
-    //   1. motionManager.update()      → 动作关键帧写入 _parameterValues
-    //   2. saveParameters()            → _savedParameters = _parameterValues（备份动作值）
-    //   3. expressionManager / eyeBlink / updateFocus / physics / pose
-    //   4. emit("beforeModelUpdate")   ← 我们在这里写
-    //   5. coreModel.update()          → Cubism Core 读 _parameterValues 渲染
-    //   6. loadParameters()            → _parameterValues = _savedParameters（恢复动作值）
+    // pixi-live2d-display 帧循环（已从源码确认）：
+    //   motionManager.update(coreModel)  → motion关键帧写入 coreModel._parameterValues
+    //   coreModel.saveParameters()       → coreModel内部备份（coreModel自己的_savedParameters）
+    //   expressionManager / eyeBlink / updateFocus / physics / pose
+    //   emit("beforeModelUpdate")
+    //   coreModel.update()               → 渲染
+    //   coreModel.loadParameters()       → 从coreModel内部备份恢复 _parameterValues
     //
-    // 解决：在步骤4写参数时，同时覆盖 _savedParameters，
-    //        这样步骤6恢复的是鼠标值，下一帧动作叠加基准不会被 Idle 重置。
+    // 问题根源：coreModel.saveParameters/loadParameters 操作的是 coreModel 原生内部状态，
+    //           我们直接写 core._savedParameters 并不能影响这个原生状态。
     //
-    // 点击动作优先：isMotionPlaying = true 期间不覆盖参数，让动作自由播放；
-    //               平滑插值继续运行，动作结束后无缝衔接鼠标追踪。
+    // 正确方案：hook coreModel.loadParameters，在原始恢复完成后，
+    //           立即把我们需要控制的参数强制覆写，保证最终写入渲染管线的值是我们的。
     let isMotionPlaying = false;
 
     function setupMouseTracking(model, canvas) {
@@ -183,6 +183,7 @@
         });
 
         const core = model.internalModel.coreModel;
+        const pv = core._parameterValues;  // Float32Array，直接引用，每帧读这个渲染
 
         // 用官方 API 预缓存 index（只查一次）
         let indices = null;
@@ -196,57 +197,52 @@
                 eyeY:         core.getParameterIndex('ParamEyeBallY'),
                 bodyX:        core.getParameterIndex('ParamBodyAngleX'),
                 bodyY:        core.getParameterIndex('ParamBodyAngleY'),
-                // 瞳孔缩放参数——motion 关键帧会驱动这两个参数造成瞳孔不断收缩，
-                // 锁定为 0（静止默认值：不收缩也不扩张）
                 pupilL:       core.getParameterIndex('ParamYanZhuSuoFangL'),
                 pupilR:       core.getParameterIndex('ParamYanZhuSuoFangR'),
-                // 高光参数同理，锁定为 0
                 highlightL:   core.getParameterIndex('ParamGaoGguangL'),
                 highlightR:   core.getParameterIndex('ParamGaoGuangR'),
             };
+            console.log('[Live2D] indices:', JSON.stringify(indices));
         }
 
+        // 核心写入函数：把我们的值强制覆写到 pv（_parameterValues Float32Array）
+        function applyParams() {
+            if (!pv || !indices) return;
+
+            // 瞳孔锁定：无论任何情况都要写，防止motion驱动瞳孔收缩
+            const safe = (idx, val) => {
+                if (idx >= 0 && idx < pv.length) pv[idx] = val;
+            };
+            safe(indices.pupilL,     0);
+            safe(indices.pupilR,     0);
+            safe(indices.highlightL, 0);
+            safe(indices.highlightR, 0);
+
+            // 头部/眼球：动作播放期间让位
+            if (!isMotionPlaying) {
+                safe(indices.angleX,  curX  *  30);
+                safe(indices.angleY, -curY  *  30);
+                safe(indices.angleZ,  curX  * -10);
+                safe(indices.eyeX,    curX);
+                safe(indices.eyeY,   -curY);
+                safe(indices.bodyX,   curX  *  10);
+                safe(indices.bodyY,  -curY  *  10);
+            }
+        }
+
+        // Hook coreModel.loadParameters —— 它执行后立即强制覆写
+        // 这是最后防线：无论 saveParameters 备份了什么值，loadParameters 恢复后我们立刻改掉
+        const _origLoad = core.loadParameters.bind(core);
+        core.loadParameters = function() {
+            _origLoad();       // 先让原始逻辑执行（恢复 motion 的值）
+            applyParams();     // 然后立即把我们的值覆盖上去
+        };
+
+        // beforeModelUpdate 里更新平滑插值（不再需要写参数，loadParameters hook 会处理）
         model.internalModel.on('beforeModelUpdate', () => {
-            // 平滑插值始终运行（动作结束后可无缝衔接，不会突然跳位）
             curX += (targetX - curX) * smooth;
             curY += (targetY - curY) * smooth;
-
-            try {
-                ensureIndices();
-                const pv = core._parameterValues;   // Float32Array（Cubism底层）
-                const sp = core._savedParameters;   // 普通JS数组（saveParameters备份）
-
-                // 瞳孔缩放和高光——无论动作是否在播放都要锁定，防止 motion 驱动瞳孔收缩
-                const alwaysWrites = [
-                    [indices.pupilL,     0],
-                    [indices.pupilR,     0],
-                    [indices.highlightL, 0],
-                    [indices.highlightR, 0],
-                ];
-                for (const [idx, val] of alwaysWrites) {
-                    if (idx < 0 || idx >= pv.length) continue;
-                    pv[idx] = val;
-                    if (sp && idx < sp.length) sp[idx] = val;
-                }
-
-                // 动作播放期间让位给动作，不强制覆盖头部/眼球方向参数
-                if (isMotionPlaying) return;
-
-                const writes = [
-                    [indices.angleX,  curX  *  30],
-                    [indices.angleY, -curY  *  30],
-                    [indices.angleZ,  curX  * -10],
-                    [indices.eyeX,    curX],
-                    [indices.eyeY,   -curY],
-                    [indices.bodyX,   curX  *  10],
-                    [indices.bodyY,  -curY  *  10],
-                ];
-                for (const [idx, val] of writes) {
-                    if (idx < 0 || idx >= pv.length) continue;
-                    pv[idx] = val;                  // 当前帧供渲染
-                    if (sp && idx < sp.length) sp[idx] = val; // 下帧基准
-                }
-            } catch (_) {}
+            try { ensureIndices(); } catch(_) {}
         });
     }
 
@@ -321,46 +317,13 @@
 
             // ===== 调试：打印全部参数名和 index =====
             try {
-                const core = model.internalModel.coreModel;
-                const count = core.getParameterCount ? core.getParameterCount() : core._parameterValues.length;
-                const names = [];
-                for (let i = 0; i < count; i++) {
-                    const id = core.getParameterId ? core.getParameterId(i) : ('param_' + i);
-                    names.push(i + ': ' + id);
-                }
-                console.log('[Live2D DEBUG] 全部参数:\n' + names.join('\n'));
-
-                // 监控 motionManager，每次有新 motion 开始时打印
-                const mm = model.internalModel.motionManager;
-                const _origStartMgr = mm.startMotion?.bind(mm);
-                if (_origStartMgr) {
-                    mm.startMotion = function(...args) {
-                        console.log('[Live2D DEBUG] startMotion called, group/no:', args[0], args[1], 'priority:', args[2]);
-                        console.trace();
-                        return _origStartMgr(...args);
-                    };
-                }
-                const _origRand = mm.startRandomMotion?.bind(mm);
-                if (_origRand) {
-                    mm.startRandomMotion = function(group, priority) {
-                        console.log('[Live2D DEBUG] startRandomMotion:', group, priority);
-                        console.trace();
-                        return _origRand(group, priority);
-                    };
-                }
-
-                // 每帧监控瞳孔参数变化
-                let lastPupilL = 0;
-                const pupilLIdx = core.getParameterIndex('ParamYanZhuSuoFangL');
-                console.log('[Live2D DEBUG] ParamYanZhuSuoFangL index:', pupilLIdx);
-                model.internalModel.on('beforeModelUpdate', () => {
-                    const v = core._parameterValues[pupilLIdx];
-                    if (Math.abs(v - lastPupilL) > 0.01) {
-                        console.log('[Live2D DEBUG] 瞳孔L变化:', lastPupilL.toFixed(3), '->', v.toFixed(3));
-                        lastPupilL = v;
-                    }
-                });
-            } catch(e) { console.warn('[Live2D DEBUG] 调试初始化失败', e); }
+                const dbgCore = model.internalModel.coreModel;
+                const count = dbgCore._parameterValues ? dbgCore._parameterValues.length : 0;
+                console.log('[Live2D DEBUG] _parameterValues length:', count);
+                // 用 getParameterIndex 验证关键参数
+                const keys = ['ParamYanZhuSuoFangL','ParamYanZhuSuoFangR','ParamGaoGguangL','ParamGaoGuangR','ParamAngleX','ParamEyeBallX'];
+                keys.forEach(k => console.log('[Live2D DEBUG]', k, '→ index', dbgCore.getParameterIndex(k)));
+            } catch(e) { console.warn('[Live2D DEBUG] 失败', e); }
             // ===== 调试结束 =====
 
             // 6. 眼睛/头部追踪（直接写参数，绕过 focus()）
