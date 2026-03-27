@@ -403,13 +403,15 @@
                 playSound(soundSrc);
                 showMessage(text);
 
-                // 触发动作，期间暂停鼠标追踪覆盖
+                // 触发动作，期间暂停鼠标追踪覆盖；动作结束后回到 Idle，清除残留表情
                 if (motionGroupKey) {
                     try {
                         isMotionPlaying = true;
                         await model.motion(motionGroupKey);
                     } catch (_) {}
                     isMotionPlaying = false;
+                    // 动作结束，播放 Idle 让模型回到初始表情（清除眉毛/嘴型残留关键帧）
+                    try { model.motion('Idle', 0, 1); } catch (_) {}
                 }
             });
 
