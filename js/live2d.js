@@ -168,12 +168,14 @@
 
             app.stage.addChild(model);
 
-            // 5. 调整模型大小和位置
+            // 5. 调整模型大小和位置（填满 canvas，完整显示全身）
             const scaleX = CANVAS_W / model.width;
             const scaleY = CANVAS_H / model.height;
-            const scale = Math.min(scaleX, scaleY) * 0.95;
+            const scale = Math.min(scaleX, scaleY);
             model.scale.set(scale);
-            model.x = (CANVAS_W - model.width * scale) / 2;
+            // 水平居中，垂直从顶部开始（完整全身）
+            model.anchor.set(0.5, 0);
+            model.x = CANVAS_W / 2;
             model.y = 0;
 
             window._live2dModel = model;
