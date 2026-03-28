@@ -71,11 +71,11 @@
                 pointer-events: auto;
                 cursor: pointer;
             }
-            /* 语音/对话开关按钮 */
+            /* 语音/对话开关按钮 - 最左下角贴底 */
             #live2d-toggle {
                 position: fixed;
-                bottom: ${SHOW_H + 10}px;
-                left: 20px;
+                bottom: 10px;
+                left: 10px;
                 width: 44px;
                 height: 44px;
                 background: linear-gradient(135deg, #a18cd1, #fbc2eb);
@@ -99,10 +99,10 @@
                 transform: scale(1.15);
                 box-shadow: 0 6px 20px rgba(161,140,209,0.8);
             }
-            /* 对话气泡 */
+            /* 对话气泡 - 看板娘正上方 */
             #live2d-msg {
                 position: fixed;
-                bottom: ${SHOW_H + 10 + 44 + 12}px;
+                bottom: ${SHOW_H + 12}px;
                 left: 20px;
                 background: rgba(255,255,255,0.96);
                 padding: 10px 16px;
