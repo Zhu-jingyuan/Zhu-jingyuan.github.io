@@ -57,7 +57,7 @@
             #live2d-widget {
                 position: fixed;
                 bottom: 0;
-                left: 20px;
+                right: 60px;
                 width: ${CANVAS_W}px;
                 height: ${SHOW_H}px;
                 overflow: hidden;
@@ -71,11 +71,11 @@
                 pointer-events: auto;
                 cursor: pointer;
             }
-            /* 语音/对话开关按钮 - 最左下角贴底 */
+            /* 语音/对话开关按钮 - 右下角贴底，与看板娘对齐 */
             #live2d-toggle {
                 position: fixed;
                 bottom: 10px;
-                left: 10px;
+                right: 60px;
                 width: 44px;
                 height: 44px;
                 background: linear-gradient(135deg, #a18cd1, #fbc2eb);
@@ -103,7 +103,7 @@
             #live2d-msg {
                 position: fixed;
                 bottom: ${SHOW_H + 12}px;
-                left: 20px;
+                right: 65px;
                 background: rgba(255,255,255,0.96);
                 padding: 10px 16px;
                 border-radius: 12px;
