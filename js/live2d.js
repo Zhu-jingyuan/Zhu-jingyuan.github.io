@@ -353,6 +353,21 @@
             window._live2dModel = model;
             console.log('[Live2D] 丛雨加载成功！');
 
+            // 预加载所有 motion 文件的时长（秒），存入 Map，点击时直接查，避免每次 fetch
+            const motionDurationMap = new Map(); // key: "motion/motionXX.motion3.json", value: seconds
+            try {
+                const allMotions = Object.values(model.internalModel?.settings?.motions || {}).flat();
+                await Promise.all(allMotions.map(async (m) => {
+                    if (!m?.File) return;
+                    try {
+                        const resp = await fetch('/live2d/' + m.File);
+                        const mj = await resp.json();
+                        if (mj?.Meta?.Duration) motionDurationMap.set(m.File, mj.Meta.Duration);
+                    } catch (_) {}
+                }));
+                console.log('[Live2D] 预加载 motion 时长完成，共', motionDurationMap.size, '条');
+            } catch (_) {}
+
             // ===== 调试：打印关键状态 =====
             try {
                 const dbgCore = model.internalModel.coreModel;
@@ -402,7 +417,7 @@
                 } catch (_) {}
 
                 // 找出对应动作（含音效和文本）
-                let soundSrc = null, text = null, motionGroupKey = null;
+                let soundSrc = null, text = null, motionGroupKey = null, pickedFile = null;
                 try {
                     const motions = model.internalModel?.settings?.motions || {};
                     const groupKey = hitMotionGroup
@@ -414,6 +429,7 @@
                     if (picked) {
                         if (picked.Sound) soundSrc = '/live2d/' + picked.Sound;
                         if (picked.Text) text = picked.Text;
+                        if (picked.File) pickedFile = picked.File; // 记录文件路径，用于查询时长
                         motionGroupKey = groupKey || Object.keys(motions).find(k => motions[k].includes(picked)) || Object.keys(motions)[0];
                     }
                 } catch (_) {}
@@ -424,15 +440,22 @@
                 playSound(soundSrc);
                 showMessage(text);
 
-                // 触发动作，期间暂停鼠标追踪覆盖；动作结束后回到 Idle，清除残留表情
+                // 触发动作，期间暂停鼠标追踪；动作播完后强制回到 Idle 清除残留表情
                 if (motionGroupKey) {
+                    // 直接从预加载缓存查询动作时长（秒）
+                    const motionDuration = (pickedFile && motionDurationMap.get(pickedFile)) || 6;
+
                     try {
                         isMotionPlaying = true;
-                        await model.motion(motionGroupKey);
+                        model.motion(motionGroupKey); // 触发动作（不 await，Promise 在动作开始时就 resolve）
                     } catch (_) {}
+
+                    // 等待动作实际播完再复原（+300ms 缓冲，避免 Idle 截断末帧）
+                    await new Promise(r => setTimeout(r, motionDuration * 1000 + 300));
                     isMotionPlaying = false;
-                    // 动作结束，播放 Idle 让模型回到初始表情（清除眉毛/嘴型残留关键帧）
-                    try { model.motion('Idle', 0, 1); } catch (_) {}
+
+                    // 高优先级播放 Idle，强制打断任何残留动作，让表情复原
+                    try { model.motion('Idle', 0, 2); } catch (_) {}
                 }
             });
 
