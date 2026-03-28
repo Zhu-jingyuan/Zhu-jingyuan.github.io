@@ -1,29 +1,154 @@
-/* 页脚透明 */
-#footer{
-    background: transparent!important;
-  }
-  /* 页脚黑色透明玻璃效果移除 */
-  #footer::before{
-      background: transparent!important;
-    }
-  /* 头图透明 */
-  #page-header{
-    background: transparent!important;
-  }
-  /* 头图遮罩层透明 */
-  #page-header::before{
-    background: transparent!important;
-    }
-  /*top-img黑色透明玻璃效果移除，不建议加，除非你执着于完全一图流或者背景图对比色明显 */
-  #page-header.post-bg:before {
-    background-color: transparent!important;
-  }
-  /*夜间模式伪类遮罩层透明*/
-  [data-theme="dark"]
-    #footer::before{
-        background: transparent!important;
-      }
-  [data-theme="dark"]
-    #page-header::before{
-      background: transparent!important;
-      }
+/* =============================================
+   基础透明设置（页脚 / 头图遮罩）
+   ============================================= */
+#footer {
+    background: transparent !important;
+}
+#footer::before {
+    background: transparent !important;
+}
+#page-header {
+    background: transparent !important;
+}
+#page-header::before {
+    background: transparent !important;
+}
+#page-header.post-bg:before {
+    background-color: transparent !important;
+}
+[data-theme="dark"] #footer::before {
+    background: transparent !important;
+}
+[data-theme="dark"] #page-header::before {
+    background: transparent !important;
+}
+
+/* =============================================
+   毛玻璃核心变量
+   ============================================= */
+:root {
+    --glass-bg: rgba(255, 255, 255, 0.55);
+    --glass-blur: 16px;
+    --glass-border: rgba(255, 255, 255, 0.45);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    --glass-radius: 12px;
+}
+[data-theme="dark"] {
+    --glass-bg: rgba(30, 30, 40, 0.60);
+    --glass-border: rgba(255, 255, 255, 0.10);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+/* =============================================
+   毛玻璃通用 mixin（用于所有卡片/容器）
+   ============================================= */
+.glass {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(var(--glass-blur)) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--glass-shadow) !important;
+    border-radius: var(--glass-radius) !important;
+}
+
+/* =============================================
+   首页文章卡片
+   ============================================= */
+.recent-post-item {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(var(--glass-blur)) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--glass-shadow) !important;
+    border-radius: var(--glass-radius) !important;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.recent-post-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18) !important;
+}
+
+/* =============================================
+   文章内容页正文区域
+   ============================================= */
+#article-container {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(var(--glass-blur)) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--glass-shadow) !important;
+    border-radius: var(--glass-radius) !important;
+    padding: 2rem 2.5rem !important;
+}
+
+/* =============================================
+   侧边栏所有 widget 卡片
+   ============================================= */
+.card-widget {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(var(--glass-blur)) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--glass-shadow) !important;
+    border-radius: var(--glass-radius) !important;
+}
+
+/* =============================================
+   导航栏
+   ============================================= */
+#nav {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+    border-bottom: 1px solid var(--glass-border) !important;
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.10) !important;
+}
+
+/* =============================================
+   文章页标签 / 分享区域
+   ============================================= */
+.tag_share {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(var(--glass-blur)) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--glass-shadow) !important;
+    border-radius: var(--glass-radius) !important;
+    padding: 1rem 1.5rem !important;
+    margin-top: 1rem !important;
+}
+
+/* =============================================
+   分页按钮区域
+   ============================================= */
+#pagination {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(var(--glass-blur)) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--glass-shadow) !important;
+    border-radius: var(--glass-radius) !important;
+}
+
+/* =============================================
+   右侧悬浮工具栏（回到顶部等按钮）
+   ============================================= */
+#rightside {
+    /* 单个按钮不做毛玻璃，保持原样 */
+}
+#rightside .rightside-item {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: 8px !important;
+}
+
+/* =============================================
+   移动端侧边菜单
+   ============================================= */
+#sidebar-menus {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+}
