@@ -57,7 +57,7 @@
             #live2d-widget {
                 position: fixed;
                 bottom: 0;
-                right: 20px;
+                left: 20px;
                 width: ${CANVAS_W}px;
                 height: ${SHOW_H}px;
                 overflow: hidden;
@@ -74,8 +74,8 @@
             /* 语音/对话开关按钮 */
             #live2d-toggle {
                 position: fixed;
-                bottom: 20px;
-                right: 20px;
+                bottom: ${SHOW_H + 10}px;
+                left: 20px;
                 width: 44px;
                 height: 44px;
                 background: linear-gradient(135deg, #a18cd1, #fbc2eb);
@@ -102,8 +102,8 @@
             /* 对话气泡 */
             #live2d-msg {
                 position: fixed;
-                bottom: ${SHOW_H + 15}px;
-                right: 25px;
+                bottom: ${SHOW_H + 10 + 44 + 12}px;
+                left: 20px;
                 background: rgba(255,255,255,0.96);
                 padding: 10px 16px;
                 border-radius: 12px;
