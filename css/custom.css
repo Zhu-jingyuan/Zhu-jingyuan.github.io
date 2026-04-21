@@ -132,11 +132,22 @@
 
 /* =============================================
    左侧悬浮工具栏（回到顶部等按钮）
+   主题默认 right:-48px + translate(-58px) 滑入，
+   用 scaleX(-1) 翻转到左侧，同时翻转内部图标使其正向
    ============================================= */
 #rightside {
     right: auto !important;
-    left: 8px !important;
-    transform: none !important;
+    left: -48px !important;
+    transform: scaleX(-1) !important;
+    opacity: 1 !important;
+}
+#rightside.rightside-show {
+    transform: translateX(58px) scaleX(-1) !important;
+    opacity: 0.8 !important;
+}
+#rightside > div > button,
+#rightside > div > a {
+    transform: scaleX(-1) !important;  /* 翻转回正向，图标/文字不反向 */
 }
 #rightside .rightside-item {
     background: var(--glass-bg) !important;
