@@ -10,23 +10,9 @@
     const MODEL_PATH = '/live2d/Murasame.model3.json';
     const CANVAS_W = 300;
     const CANVAS_H = 550;
-    const SHOW_H = Math.floor(CANVAS_H * 3 / 5);  // 只露上半 3/5
-
-    // 语音/对话开关状态（默认关闭），从 localStorage 读取
-    let voiceEnabled = localStorage.getItem('live2d_voice') === 'true';
-
-    const MESSAGES = [
-        '吾名丛雨，乃是这"丛雨丸"的管理者……',
-        '你，就是本座的主人？',
-        '早上好，主人！今天也要加油~',
-        '本座才不是幽灵！完全不是！',
-        '在这里，这里哦~',
-        '主人今天也要加油！',
-        '本座不是幻觉，更不是幽灵，主人！',
-        '有什么烦恼可以和本座说哦~',
-        '欢迎来到主人的博客！',
-        '点击本座试试？'
-    ];
+    // 显示上 3/4，canvas 整体下移 1/4（使头部对齐容器顶部）
+    const SHOW_H   = Math.floor(CANVAS_H * 3 / 4);          // 412px 可见区域
+    const OFFSET_Y = Math.floor(CANVAS_H / 4);               // 137px 向下偏移量（隐藏上 1/4）
 
     // 小屏幕检测（手机/窄屏不加载看板娘，省流量省性能）
     const MOBILE_BREAKPOINT = 768;  // px，低于此宽度视为移动端
@@ -57,7 +43,7 @@
             #live2d-widget {
                 position: fixed;
                 bottom: 0;
-                right: 60px;
+                right: 20px;
                 width: ${CANVAS_W}px;
                 height: ${SHOW_H}px;
                 overflow: hidden;
@@ -66,105 +52,19 @@
             }
             #live2d-widget canvas {
                 position: absolute;
-                top: 0;
+                top: ${OFFSET_Y}px;
                 left: 0;
                 pointer-events: auto;
                 cursor: pointer;
             }
-            /* 语音/对话开关按钮 - 右下角贴底，与看板娘对齐 */
-            #live2d-toggle {
-                position: fixed;
-                bottom: 10px;
-                right: 60px;
-                width: 44px;
-                height: 44px;
-                background: linear-gradient(135deg, #a18cd1, #fbc2eb);
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                z-index: 100000;
-                font-size: 20px;
-                box-shadow: 0 4px 15px rgba(161,140,209,0.6);
-                transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
-                user-select: none;
-                opacity: 0.5;
-            }
-            #live2d-toggle.active {
-                opacity: 1;
-                box-shadow: 0 4px 20px rgba(161,140,209,0.9);
-            }
-            #live2d-toggle:hover {
-                transform: scale(1.15);
-                box-shadow: 0 6px 20px rgba(161,140,209,0.8);
-            }
-            /* 对话气泡 - 看板娘正上方 */
-            #live2d-msg {
-                position: fixed;
-                bottom: ${SHOW_H + 12}px;
-                right: 65px;
-                background: rgba(255,255,255,0.96);
-                padding: 10px 16px;
-                border-radius: 12px;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-                max-width: 230px;
-                font-size: 13px;
-                line-height: 1.7;
-                color: #444;
-                opacity: 0;
-                transform: translateY(6px);
-                transition: opacity 0.35s, transform 0.35s;
-                z-index: 100001;
-                pointer-events: none;
-                border-left: 3px solid #a18cd1;
-            }
-            #live2d-msg.show {
-                opacity: 1;
-                transform: translateY(0);
-            }
             /* 小屏幕（手机/平板竖屏）自动隐藏看板娘 */
             @media (max-width: 768px) {
-                #live2d-widget,
-                #live2d-toggle,
-                #live2d-msg {
+                #live2d-widget {
                     display: none !important;
                 }
             }
         `;
         document.head.appendChild(style);
-    }
-
-    // 当前播放的音频
-    let currentAudio = null;
-    let msgTimer = null;
-
-    // 显示对话气泡（受开关控制）
-    function showMessage(text, duration) {
-        if (!voiceEnabled) return;
-        duration = duration || 5000;
-        let el = document.getElementById('live2d-msg');
-        if (!el) {
-            el = document.createElement('div');
-            el.id = 'live2d-msg';
-            document.body.appendChild(el);
-        }
-        el.textContent = text;
-        el.classList.add('show');
-        clearTimeout(msgTimer);
-        msgTimer = setTimeout(() => el.classList.remove('show'), duration);
-    }
-
-    // 播放音频（受开关控制）
-    function playSound(src) {
-        if (!voiceEnabled) return;
-        if (currentAudio) {
-            currentAudio.pause();
-            currentAudio.currentTime = 0;
-        }
-        currentAudio = new Audio(src);
-        currentAudio.volume = 0.8;
-        currentAudio.play().catch(() => {});
     }
 
     // 眼睛/头部追踪 —— 终极方案 v3
@@ -176,9 +76,6 @@
     //   emit("beforeModelUpdate")
     //   coreModel.update()               → 渲染
     //   coreModel.loadParameters()       → 从coreModel内部备份恢复 _parameterValues
-    //
-    // 问题根源：coreModel.saveParameters/loadParameters 操作的是 coreModel 原生内部状态，
-    //           我们直接写 core._savedParameters 并不能影响这个原生状态。
     //
     // 正确方案：hook coreModel.loadParameters，在原始恢复完成后，
     //           立即把我们需要控制的参数强制覆写，保证最终写入渲染管线的值是我们的。
@@ -246,22 +143,19 @@
         }
 
         // Hook coreModel.loadParameters —— 它执行后立即强制覆写
-        // 这是最后防线：无论 saveParameters 备份了什么值，loadParameters 恢复后我们立刻改掉
         const _origLoad = core.loadParameters.bind(core);
         core.loadParameters = function() {
-            _origLoad();       // 先让原始逻辑执行（恢复 motion 的值）
-            applyParams();     // 然后立即把我们的值覆盖上去
+            _origLoad();
+            applyParams();
         };
 
-        // beforeModelUpdate：在 coreModel.update()（渲染）之前执行，这里是覆盖参数的正确时机
-        // 帧循环真实顺序：motionManager.update → saveParameters → [此事件] → coreModel.update(渲染) → loadParameters
-        // 必须在这里写 pv，才能让渲染看到我们的值。loadParameters hook 作为双重保险。
+        // beforeModelUpdate：在 coreModel.update()（渲染）之前执行
         model.internalModel.on('beforeModelUpdate', () => {
             curX += (targetX - curX) * smooth;
             curY += (targetY - curY) * smooth;
             try {
                 ensureIndices();
-                applyParams();  // 在渲染前强制覆写参数（覆盖 motion 关键帧写入的瞳孔值等）
+                applyParams();
             } catch(_) {}
         });
     }
@@ -305,7 +199,7 @@
             // 4. 加载模型
             const model = await PIXI.live2d.Live2DModel.from(MODEL_PATH, {
                 onError: (e) => console.error('[Live2D] Model error:', e),
-                autoInteract: false,   // 关闭内置交互，避免和自定义冲突
+                autoInteract: false,
             });
 
             app.stage.addChild(model);
@@ -317,26 +211,14 @@
             model.x = CANVAS_W / 2;
             model.y = 0;
 
-            // 禁用内置 updateFocus（它用 addParameterValueById 叠加写 EyeBall/Angle，
-            // 会和我们的 beforeModelUpdate 事件里的写入产生顺序依赖，直接置空）
-            // 禁用 Idle 自动循环（motion01 含 EyeBall/Angle 关键帧，会被 beforeModelUpdate 覆盖，
-            // 但 loadParameters 之后 Idle 仍会反复触发，保险起见也禁用）
-            // 禁用 eyeBlink（眨眼写 ParamEyeLOpen，该参数通过 .moc3 内部参数绑定联动驱动瞳孔
-            // 缩放参数 ParamYanZhuSuoFang，导致每次眨眼时瞳孔收缩，无法从参数层面修复）
+            // 禁用内置 updateFocus / eyeBlink / Idle 自动循环
             try {
-                // 覆盖 updateFocus 为空函数
                 model.internalModel.updateFocus = function () {};
-                // 禁用 eyeBlink（彻底断开眨眼→瞳孔收缩的联动）
                 const eyeBlink = model.internalModel.eyeBlink;
                 if (eyeBlink) {
-                    // 方案1：直接置空 update 方法
-                    if (typeof eyeBlink.update === 'function') {
-                        eyeBlink.update = function () {};
-                    }
-                    // 方案2：将 eyeBlink 引用置 null（部分版本通过 eyeBlink?.update 调用）
+                    if (typeof eyeBlink.update === 'function') eyeBlink.update = function () {};
                     model.internalModel.eyeBlink = null;
                 }
-                // 禁用 Idle 重新触发
                 const mm = model.internalModel.motionManager;
                 if (mm) {
                     if (mm.idleTimeoutSeconds !== undefined) mm.idleTimeoutSeconds = Infinity;
@@ -353,8 +235,8 @@
             window._live2dModel = model;
             console.log('[Live2D] 丛雨加载成功！');
 
-            // 预加载所有 motion 文件的时长（秒），存入 Map，点击时直接查，避免每次 fetch
-            const motionDurationMap = new Map(); // key: "motion/motionXX.motion3.json", value: seconds
+            // 预加载所有 motion 文件的时长（秒），存入 Map，点击时直接查
+            const motionDurationMap = new Map();
             try {
                 const allMotions = Object.values(model.internalModel?.settings?.motions || {}).flat();
                 await Promise.all(allMotions.map(async (m) => {
@@ -368,39 +250,12 @@
                 console.log('[Live2D] 预加载 motion 时长完成，共', motionDurationMap.size, '条');
             } catch (_) {}
 
-            // ===== 调试：打印关键状态 =====
-            try {
-                const dbgCore = model.internalModel.coreModel;
-                const pv = dbgCore._parameterValues;
-                const idxEyeLOpen  = dbgCore.getParameterIndex('ParamEyeLOpen');
-                const idxEyeROpen  = dbgCore.getParameterIndex('ParamEyeROpen');
-                const idxPupilL    = dbgCore.getParameterIndex('ParamYanZhuSuoFangL');
-                const idxPupilR    = dbgCore.getParameterIndex('ParamYanZhuSuoFangR');
-                console.log('[DBG] eyeBlink after disable:', model.internalModel.eyeBlink);
-                console.log('[DBG] ParamEyeLOpen idx:', idxEyeLOpen, ' ParamEyeROpen idx:', idxEyeROpen);
-                console.log('[DBG] PupilL idx:', idxPupilL, ' PupilR idx:', idxPupilR);
-                // 每隔200ms打印一次眼睛参数，持续4秒，观察是否有变化
-                let dbgCount = 0;
-                const dbgTimer = setInterval(() => {
-                    if (++dbgCount > 20) { clearInterval(dbgTimer); return; }
-                    console.log('[DBG frame]',
-                        'EyeLOpen=', pv[idxEyeLOpen]?.toFixed(3),
-                        'EyeROpen=', pv[idxEyeROpen]?.toFixed(3),
-                        'PupilL=',   pv[idxPupilL]?.toFixed(3),
-                        'PupilR=',   pv[idxPupilR]?.toFixed(3)
-                    );
-                }, 200);
-            } catch(e) { console.warn('[DBG] 失败', e); }
-            // ===== 调试结束 =====
-
-            // 6. 眼睛/头部追踪（直接写参数，绕过 focus()）
+            // 6. 眼睛/头部追踪
             setupMouseTracking(model, app.view);
 
-            // 7. 点击交互（触发对应区域动作+音效+对话）
-            // 动作播放期间 isMotionPlaying=true，鼠标追踪让位；动作结束后自动恢复。
+            // 7. 点击交互（触发对应区域动作，动作结束后复原表情）
             app.view.addEventListener('click', async (e) => {
                 const rect = app.view.getBoundingClientRect();
-                // 点击坐标转换为模型局部坐标
                 const localX = (e.clientX - rect.left) / (rect.width / CANVAS_W);
                 const localY = (e.clientY - rect.top) / (rect.height / CANVAS_H);
 
@@ -416,8 +271,8 @@
                     }
                 } catch (_) {}
 
-                // 找出对应动作（含音效和文本）
-                let soundSrc = null, text = null, motionGroupKey = null, pickedFile = null;
+                // 找出对应动作
+                let motionGroupKey = null, pickedFile = null;
                 try {
                     const motions = model.internalModel?.settings?.motions || {};
                     const groupKey = hitMotionGroup
@@ -427,59 +282,26 @@
                     const list = group && group.length ? group : Object.values(motions).flat();
                     const picked = list[Math.floor(Math.random() * list.length)];
                     if (picked) {
-                        if (picked.Sound) soundSrc = '/live2d/' + picked.Sound;
-                        if (picked.Text) text = picked.Text;
-                        if (picked.File) pickedFile = picked.File; // 记录文件路径，用于查询时长
+                        if (picked.File) pickedFile = picked.File;
                         motionGroupKey = groupKey || Object.keys(motions).find(k => motions[k].includes(picked)) || Object.keys(motions)[0];
                     }
                 } catch (_) {}
 
-                // 随机消息兜底
-                if (!text) text = MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
-
-                playSound(soundSrc);
-                showMessage(text);
-
-                // 触发动作，期间暂停鼠标追踪；动作播完后强制回到 Idle 清除残留表情
+                // 触发动作，动作播完后强制回到 Idle 清除残留表情
                 if (motionGroupKey) {
-                    // 直接从预加载缓存查询动作时长（秒）
                     const motionDuration = (pickedFile && motionDurationMap.get(pickedFile)) || 6;
 
                     try {
                         isMotionPlaying = true;
-                        model.motion(motionGroupKey); // 触发动作（不 await，Promise 在动作开始时就 resolve）
+                        model.motion(motionGroupKey);
                     } catch (_) {}
 
-                    // 等待动作实际播完再复原（+300ms 缓冲，避免 Idle 截断末帧）
                     await new Promise(r => setTimeout(r, motionDuration * 1000 + 300));
                     isMotionPlaying = false;
 
-                    // 高优先级播放 Idle，强制打断任何残留动作，让表情复原
                     try { model.motion('Idle', 0, 2); } catch (_) {}
                 }
             });
-
-            // 8. 语音/对话开关按钮
-            const btn = document.createElement('div');
-            btn.id = 'live2d-toggle';
-            btn.title = voiceEnabled ? '关闭语音与对话' : '开启语音与对话';
-            btn.innerHTML = '🔊';
-            if (voiceEnabled) btn.classList.add('active');
-
-            btn.onclick = (e) => {
-                e.stopPropagation();
-                voiceEnabled = !voiceEnabled;
-                localStorage.setItem('live2d_voice', voiceEnabled);
-                btn.classList.toggle('active', voiceEnabled);
-                btn.title = voiceEnabled ? '关闭语音与对话' : '开启语音与对话';
-                if (!voiceEnabled) {
-                    // 关闭时停止音频并隐藏气泡
-                    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-                    const msg = document.getElementById('live2d-msg');
-                    if (msg) msg.classList.remove('show');
-                }
-            };
-            document.body.appendChild(btn);
 
         } catch (e) {
             console.error('[Live2D] 加载失败，已跳过看板娘:', e.message || e);
