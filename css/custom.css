@@ -135,7 +135,8 @@
    ============================================= */
 #rightside {
     right: auto !important;
-    left: 0 !important;
+    left: 8px !important;
+    transform: none !important;
 }
 #rightside .rightside-item {
     background: var(--glass-bg) !important;
