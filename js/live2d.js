@@ -43,7 +43,7 @@
             #live2d-widget {
                 position: fixed;
                 bottom: 0;
-                right: 20px;
+                right: 0;
                 width: ${CANVAS_W}px;
                 height: ${SHOW_H}px;
                 overflow: hidden;
@@ -56,10 +56,6 @@
                 left: 0;
                 pointer-events: auto;
                 cursor: pointer;
-            }
-            /* 右侧工具栏始终在看板娘上层，不被遮挡 */
-            #rightside {
-                z-index: 9999 !important;
             }
             /* 小屏幕（手机/平板竖屏）自动隐藏看板娘 */
             @media (max-width: 768px) {

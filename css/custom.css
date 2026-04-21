@@ -131,10 +131,11 @@
 }
 
 /* =============================================
-   右侧悬浮工具栏（回到顶部等按钮）
+   左侧悬浮工具栏（回到顶部等按钮）
    ============================================= */
 #rightside {
-    /* 单个按钮不做毛玻璃，保持原样 */
+    right: auto !important;
+    left: 0 !important;
 }
 #rightside .rightside-item {
     background: var(--glass-bg) !important;
