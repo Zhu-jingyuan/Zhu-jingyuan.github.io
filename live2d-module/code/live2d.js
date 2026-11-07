@@ -165,7 +165,10 @@
             }
             ` : ''}
         `;
-        document.head.appendChild(style);
+        // 挂到 <html> 根节点而不是 <head>：Astro 视图过渡（ClientRouter）换页时
+        // 会清空重建整个 head，运行时插入 head 的元素会被移除；
+        // 根节点下的元素不受影响，保证看板娘样式在整个 SPA 会话中存活。
+        document.documentElement.appendChild(style);
     }
 
     // ======================== 鼠标追踪 ========================
@@ -258,6 +261,9 @@
     // ======================== 主初始化 ========================
 
     async function init() {
+        // 幂等保护：容器已存在则不重复初始化（正常情况下整个会话只加载一次）
+        if (document.getElementById('live2d-widget')) return;
+
         if (isMobile()) {
             console.log('[Live2D] 小屏幕（宽度 < ' + CONFIG.mobile_breakpoint + 'px），跳过加载');
             return;
@@ -267,7 +273,10 @@
 
         const container = document.createElement('div');
         container.id = 'live2d-widget';
-        document.body.appendChild(container);
+        // 挂到 <html> 根节点（<body> 的兄弟节点）而不是 body 内部：
+        // Astro ClientRouter 切换页面时会整体替换 <body>，挂在 body 里的容器会随之销毁；
+        // 根节点下的元素不受换页影响 —— 看板娘只在首次访问时加载一次，切页全程存活。
+        document.documentElement.appendChild(container);
 
         try {
             // 1. 加载引擎
